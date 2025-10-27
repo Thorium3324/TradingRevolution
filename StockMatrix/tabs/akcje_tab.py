@@ -11,10 +11,10 @@ def akcje_tab():
     st.subheader("Zakładka Akcje - TradingRevolution Ultimate")
 
     # --- Dane wejściowe ---
-    ticker = st.text_input("Wprowadź ticker (np. AAPL, TSLA):", "AAPL").upper()
+    ticker = st.text_input("Ticker akcji (np. AAPL, TSLA, MSFT):", "AAPL").upper()
     start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"))
     end_date = st.date_input("Data końcowa:", pd.Timestamp.today())
-    interval = st.selectbox("Interwał:", ["1d", "1h", "4h", "1wk"])
+    interval = st.selectbox("Interwał:", ["1d", "1wk", "1mo"])
 
     if not ticker:
         st.warning("Podaj ticker akcji")
@@ -56,7 +56,7 @@ def akcje_tab():
     volume_col = find_price_col(df, 'Volume')
 
     if not all([open_col, high_col, low_col, close_col]):
-        st.error(f"Brakuje wymaganych kolumn do wykresu świecowego")
+        st.error("Brakuje wymaganych kolumn do wykresu świecowego")
         return
 
     open_data = df[open_col]
@@ -71,35 +71,20 @@ def akcje_tab():
     df['SMA200'] = SMAIndicator(close_data, 200).sma_indicator()
     df['EMA20'] = EMAIndicator(close_data, 20).ema_indicator()
     df['EMA50'] = EMAIndicator(close_data, 50).ema_indicator()
-    df['RSI'] = RSIIndicator(close_data, 14).rsi()
+    df['RSI14'] = RSIIndicator(close_data, 14).rsi()
     macd = MACD(close_data)
     df['MACD'] = macd.macd()
     df['MACD_signal'] = macd.macd_signal()
-    bb = BollingerBands(close_data)
-    df['BB_upper'] = bb.bollinger_hband()
-    df['BB_lower'] = bb.bollinger_lband()
-    df['ATR'] = AverageTrueRange(high_data, low_data, close_data, 14).average_true_range()
+    df['BB_upper'] = BollingerBands(close_data).bollinger_hband()
+    df['BB_lower'] = BollingerBands(close_data).bollinger_lband()
+    df['ATR14'] = AverageTrueRange(high_data, low_data, close_data, 14).average_true_range()
     df['Stochastic'] = StochasticOscillator(high_data, low_data, close_data, 14).stoch()
-    df['CCI'] = CCIIndicator(high_data, low_data, close_data, 20).cci()
-    df['Momentum'] = MomentumIndicator(close_data, 5).momentum()
-    df['OBV'] = OnBalanceVolumeIndicator(close_data, volume_data).on_balance_volume()
-    df['ADX'] = ADXIndicator(high_data, low_data, close_data, 14).adx()
+    df['CCI20'] = CCIIndicator(high_data, low_data, close_data, 20).cci()
+    df['Momentum5'] = MomentumIndicator(close_data, 5).momentum()
+    if volume_col:
+        df['OBV'] = OnBalanceVolumeIndicator(close_data, volume_data).on_balance_volume()
 
-    # --- Sygnały BUY/SELL ---
-    df['Signal'] = ""
-    df.loc[(close_data > df['SMA20']) & (df['RSI'] < 70), 'Signal'] = "BUY"
-    df.loc[(close_data < df['SMA20']) & (df['RSI'] > 30), 'Signal'] = "SELL"
-
-    # --- Formacje świecowe ---
-    df['Hammer'] = ((high_data - low_data) > 3*(open_data - close_data)) & \
-                   (((close_data - low_data) / (0.001 + high_data - low_data)) > 0.6)
-    df['Doji'] = abs(close_data - open_data) / (high_data - low_data + 0.001) < 0.1
-    df['Engulfing'] = ((close_data > open_data) & (close_data.shift(1) < open_data.shift(1)) & \
-                       (close_data > open_data.shift(1))) | \
-                      ((close_data < open_data) & (close_data.shift(1) > open_data.shift(1)) & \
-                       (close_data < open_data.shift(1)))
-
-    # --- Wykres świecowy + wskaźniki ---
+    # --- Wykres świecowy ---
     fig_candle = go.Figure()
     fig_candle.add_trace(go.Candlestick(
         x=df.index,
@@ -111,9 +96,11 @@ def akcje_tab():
         decreasing_line_color='red',
         name="Świece"
     ))
+
+    # Dodanie wskaźników do wykresu
     fig_candle.add_trace(go.Scatter(x=df.index, y=df['SMA20'], line=dict(color='orange', width=2), name="SMA20"))
     fig_candle.add_trace(go.Scatter(x=df.index, y=df['SMA50'], line=dict(color='yellow', width=2), name="SMA50"))
-    fig_candle.add_trace(go.Scatter(x=df.index, y=df['SMA200'], line=dict(color='purple', width=2), name="SMA200"))
+    fig_candle.add_trace(go.Scatter(x=df.index, y=df['SMA200'], line=dict(color='pink', width=2), name="SMA200"))
     fig_candle.add_trace(go.Scatter(x=df.index, y=df['EMA20'], line=dict(color='green', width=2), name="EMA20"))
     fig_candle.add_trace(go.Scatter(x=df.index, y=df['EMA50'], line=dict(color='blue', width=2), name="EMA50"))
     fig_candle.add_trace(go.Scatter(x=df.index, y=df['BB_upper'], line=dict(color='red', width=1, dash='dot'), name="BB Upper"))
@@ -122,24 +109,36 @@ def akcje_tab():
 
     st.plotly_chart(fig_candle, use_container_width=True)
 
-    # --- Wolumen słupkowy ---
+    # --- Wykres wolumenu ---
     if volume_data is not None:
         fig_vol = go.Figure()
-        fig_vol.add_trace(go.Bar(x=df.index, y=volume_data, name="Wolumen", marker_color='cyan'))
-        fig_vol.update_layout(title="Wolumen", template="plotly_dark", height=200)
+        fig_vol.add_trace(go.Bar(x=df.index, y=volume_data, name="Wolumen", marker_color='skyblue'))
+        fig_vol.update_layout(title="Wolumen", template="plotly_dark", height=250)
         st.plotly_chart(fig_vol, use_container_width=True)
 
-    # --- Panel Technical Analysis ---
+    # --- Technical Analysis Panel ---
     st.subheader("Technical Analysis Panel")
-    last_price = close_data.iloc[-1] if not close_data.empty else 0
-    cols = st.columns(6)
-    cols[0].metric("Price (USD)", f"${last_price:.2f}")
-    cols[1].metric("RSI (14)", f"{df['RSI'].iloc[-1]:.2f}")
-    cols[2].metric("MACD", f"{df['MACD'].iloc[-1]:.3f}")
-    cols[3].metric("ATR", f"{df['ATR'].iloc[-1]:.2f}")
-    cols[4].metric("ADX", f"{df['ADX'].iloc[-1]:.2f}")
-    cols[5].metric("Momentum", f"{df['Momentum'].iloc[-1]:.2f}")
+    last_close = float(close_data.iloc[-1]) if (not close_data.empty and pd.notna(close_data.iloc[-1])) else 0.0
+    last_rsi = float(df['RSI14'].iloc[-1]) if not df['RSI14'].isna().all() else 0.0
+    last_macd = float(df['MACD'].iloc[-1]) if not df['MACD'].isna().all() else 0.0
+    last_atr = float(df['ATR14'].iloc[-1]) if not df['ATR14'].isna().all() else 0.0
 
-    # --- Tabela ostatnich sygnałów ---
-    st.subheader("Ostatnie sygnały BUY/SELL i formacje świecowe")
-    st.dataframe(df[[close_col,'SMA20','SMA50','SMA200','EMA20','EMA50','RSI','MACD','BB_upper','BB_lower','ATR','Stochastic','CCI','Momentum','OBV','ADX','Signal','Hammer','Doji','Engulfing']].tail(20))
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1.metric("Price (USD)", f"${last_close:.2f}", delta=None)
+    col2.metric("RSI(14)", f"{last_rsi:.2f}", delta=None)
+    col3.metric("MACD", f"{last_macd:.3f}", delta=None)
+    col4.metric("ATR(14)", f"{last_atr:.2f}", delta=None)
+    if volume_col:
+        last_obv = float(df['OBV'].iloc[-1])
+        col5.metric("OBV", f"{last_obv:.0f}", delta=None)
+    last_momentum = float(df['Momentum5'].iloc[-1])
+    col6.metric("Momentum(5)", f"{last_momentum:.2f}", delta=None)
+
+    # --- Tabela wskaźników ---
+    st.subheader("Ostatnie dane wskaźników technicznych")
+    columns_to_show = ['SMA20','SMA50','SMA200','EMA20','EMA50','RSI14','MACD','MACD_signal',
+                       'BB_upper','BB_lower','ATR14','Stochastic','CCI20','Momentum5']
+    if volume_col:
+        columns_to_show.append('OBV')
+
+    st.dataframe(df[columns_to_show].tail(20))
