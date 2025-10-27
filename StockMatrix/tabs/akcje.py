@@ -1,29 +1,28 @@
 import streamlit as st
-import plotly.graph_objects as go
-import pandas as pd
 import yfinance as yf
-from utils.data_fetch import get_stock_data
+import pandas as pd
+import plotly.graph_objects as go
 import numpy as np
 
 def akcje_tab():
     st.title("📊 Analiza akcji – Trading Revolution")
 
-    ticker = st.text_input("Wpisz symbol akcji (np. AAPL, TSLA, MSFT):", "AAPL")
-
+    ticker = st.text_input("Wpisz symbol akcji:", "AAPL")
     period = st.selectbox("Okres danych:", ["1mo", "3mo", "6mo", "1y", "2y", "5y", "max"])
     interval = st.selectbox("Interwał:", ["1d", "1wk", "1mo"])
 
-    df = get_stock_data(ticker, period=period, interval=interval)
+    df = get_stock_data(ticker, period, interval)
 
-    if df is None or df.empty:
+    if df.empty:
         st.error("❌ Nie udało się pobrać danych.")
         return
 
-    # Przygotowanie danych
     df.dropna(inplace=True)
+
+    # Obliczenia wskaźników
     df["RSI"] = compute_rsi(df["Close"])
-    df["EMA_20"] = df["Close"].ewm(span=20, adjust=False).mean()
-    df["EMA_50"] = df["Close"].ewm(span=50, adjust=False).mean()
+    df["EMA20"] = df["Close"].ewm(span=20, adjust=False).mean()
+    df["EMA50"] = df["Close"].ewm(span=50, adjust=False).mean()
 
     macd_line, signal_line, hist = compute_macd(df["Close"])
     df["MACD_Line"] = macd_line
@@ -31,40 +30,23 @@ def akcje_tab():
     df["Hist"] = hist
 
     # Wykres świecowy
-    st.subheader(f"📈 Wykres świecowy: {ticker}")
-
     fig = go.Figure(data=[go.Candlestick(
         x=df.index,
-        open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
-        name="Świece"
+        open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"]
     )])
-    fig.add_trace(go.Scatter(x=df.index, y=df["EMA_20"], mode='lines', name="EMA 20", line=dict(color='blue', width=1)))
-    fig.add_trace(go.Scatter(x=df.index, y=df["EMA_50"], mode='lines', name="EMA 50", line=dict(color='orange', width=1)))
-
-    fig.update_layout(
-        xaxis_rangeslider_visible=False,
-        template="plotly_dark",
-        height=600
-    )
+    fig.add_trace(go.Scatter(x=df.index, y=df["EMA20"], name="EMA 20", line=dict(color="blue")))
+    fig.add_trace(go.Scatter(x=df.index, y=df["EMA50"], name="EMA 50", line=dict(color="orange")))
+    fig.update_layout(xaxis_rangeslider_visible=False, template="plotly_dark", height=600)
     st.plotly_chart(fig, use_container_width=True)
 
     # Wskaźniki techniczne
-    st.subheader("📊 Analiza techniczna")
-
     col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Cena (USD)", f"${df['Close'].iloc[-1]:.2f}")
-    with col2:
-        change = ((df['Close'].iloc[-1] / df['Close'].iloc[-2] - 1) * 100)
-        st.metric("24h Zmiana", f"{change:.2f}%")
-    with col3:
-        st.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}")
-    with col4:
-        st.metric("MACD", f"{df['MACD_Line'].iloc[-1]:.3f}")
+    col1.metric("Cena (USD)", f"${df['Close'].iloc[-1]:.2f}")
+    col2.metric("24h Zmiana", f"{((df['Close'].iloc[-1]/df['Close'].iloc[-2]-1)*100):.2f}%")
+    col3.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}")
+    col4.metric("MACD", f"{df['MACD_Line'].iloc[-1]:.3f}")
 
-    # Dodatkowe wykresy
     st.subheader("📉 RSI i MACD")
-
     fig_rsi = go.Figure()
     fig_rsi.add_trace(go.Scatter(x=df.index, y=df["RSI"], name="RSI", line=dict(color="cyan")))
     fig_rsi.add_hline(y=70, line_dash="dot", line_color="red")
@@ -79,12 +61,21 @@ def akcje_tab():
     fig_macd.update_layout(template="plotly_dark", height=300)
     st.plotly_chart(fig_macd, use_container_width=True)
 
+# --- Funkcje pomocnicze ---
+def get_stock_data(ticker, period="6mo", interval="1d"):
+    try:
+        df = yf.download(ticker, period=period, interval=interval, progress=False)
+        df = df.reset_index().set_index("Date")
+        return df
+    except:
+        return pd.DataFrame()
+
 def compute_rsi(series, period=14):
     delta = series.diff()
     gain = delta.where(delta > 0, 0)
     loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.ewm(com=period - 1, min_periods=period).mean()
-    avg_loss = loss.ewm(com=period - 1, min_periods=period).mean()
+    avg_gain = gain.ewm(com=period-1, min_periods=period).mean()
+    avg_loss = loss.ewm(com=period-1, min_periods=period).mean()
     rs = avg_gain / avg_loss
     return 100 - (100 / (1 + rs))
 
