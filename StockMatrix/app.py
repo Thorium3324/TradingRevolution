@@ -2,9 +2,9 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-from ta.trend import SMAIndicator, EMAIndicator, MACD
-from ta.momentum import RSIIndicator
-from ta.volatility import BollingerBands
+from ta.trend import SMAIndicator, EMAIndicator, MACD, ADXIndicator
+from ta.momentum import RSIIndicator, StochasticOscillator
+from ta.volatility import BollingerBands, AverageTrueRange
 
 st.set_page_config(page_title="TradingRevolution Ultimate", layout="wide", page_icon="💹")
 
@@ -21,6 +21,9 @@ def akcje_tab():
     sma_period = st.sidebar.slider("Okres SMA", 5, 100, 20)
     ema_period = st.sidebar.slider("Okres EMA", 5, 100, 20)
     rsi_period = st.sidebar.slider("Okres RSI", 5, 50, 14)
+    stochastic_period = st.sidebar.slider("Okres Stochastic", 5, 50, 14)
+    adx_period = st.sidebar.slider("Okres ADX", 5, 50, 14)
+    atr_period = st.sidebar.slider("Okres ATR", 5, 50, 14)
 
     if not ticker:
         st.warning("Podaj ticker akcji")
@@ -57,7 +60,7 @@ def akcje_tab():
     volume_col = find_price_col(df, 'Volume')
 
     if not all([open_col, high_col, low_col, close_col]):
-        st.error(f"Brakuje wymaganych kolumn do wykresu świecowego: Open:{open_col}, High:{high_col}, Low:{low_col}, Close:{close_col}")
+        st.error(f"Brakuje wymaganych kolumn do wykresu świecowego")
         return
 
     open_data = df[open_col]
@@ -75,6 +78,9 @@ def akcje_tab():
     bb = BollingerBands(close_data)
     df['BB_upper'] = bb.bollinger_hband()
     df['BB_lower'] = bb.bollinger_lband()
+    df['ATR'] = AverageTrueRange(high_data, low_data, close_data, atr_period).average_true_range()
+    df['Stochastic'] = StochasticOscillator(high_data, low_data, close_data, stochastic_period).stoch()
+    df['ADX'] = ADXIndicator(high_data, low_data, close_data, adx_period).adx()
 
     # --- Sygnały Buy/Sell ---
     df['Signal'] = ""
@@ -134,9 +140,37 @@ def akcje_tab():
     st.plotly_chart(fig_rsi, use_container_width=True)
     st.plotly_chart(fig_macd, use_container_width=True)
 
+    # --- Technical Analysis Panel ---
+    price = close_data[-1]
+    change_24h = ((close_data[-1] - close_data[-2])/close_data[-2]*100) if len(close_data) > 1 else 0
+    rsi_value = df['RSI'][-1]
+    macd_value = df['MACD'][-1]
+    volatility_30d = close_data.pct_change().dropna()[-30:].std() * 100
+
+    # Ogólny sygnał
+    signal_strength = 6
+    signal = "Neutral"
+    if rsi_value < 30 and close_data[-1] > df['SMA'][-1]:
+        signal = "Buy"
+        signal_strength = 8
+    elif rsi_value > 70 and close_data[-1] < df['SMA'][-1]:
+        signal = "Sell"
+        signal_strength = 7
+
+    st.markdown("### Technical Analysis")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Price (USD)", f"${price:.2f}", f"{change_24h:.2f}%")
+    col2.metric("RSI (14)", f"{rsi_value:.2f}")
+    col3.metric("MACD", f"{macd_value:.3f}")
+    col4.metric("Volatility (30d)", f"{volatility_30d:.2f}%")
+    col5.metric("Signal", f"{signal} ({signal_strength}/10)")
+
+    if volatility_30d > 10:
+        st.warning("High volatility detected – expect larger price swings ⚠️")
+
     # --- Tabela sygnałów i formacji ---
     st.subheader("Ostatnie sygnały Buy/Sell i formacje świecowe")
-    st.dataframe(df[[close_col,'SMA','EMA','RSI','Signal','Hammer','Doji','Engulfing']].tail(20))
+    st.dataframe(df[[close_col,'SMA','EMA','RSI','Signal','Hammer','Doji','Engulfing','ATR','Stochastic','ADX']].tail(20))
 
 
 # --- Sidebar z zakładkami ---
