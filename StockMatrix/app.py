@@ -161,6 +161,7 @@ def akcje_tab():
 
     st.markdown("### Technical Analysis")
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Price (USD)", f"${price:.2f}", f"{change}
+    col1.metric("Price (USD)", f"${price:.2f}", f"{change}"
+
 
 
