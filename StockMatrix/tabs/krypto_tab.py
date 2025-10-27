@@ -80,10 +80,26 @@ def krypto_tab():
  # --- Panel wskaźników ---
 st.subheader("Technical Analysis")
 
-last_price = float(close_data.iloc[-1]) if (not close_data.empty and pd.notna(close_data.iloc[-1])) else 0.0
-last_rsi = float(df['RSI14'].iloc[-1]) if ('RSI14' in df.columns and pd.notna(df['RSI14'].iloc[-1])) else 0.0
-last_macd = float(df['MACD'].iloc[-1]) if ('MACD' in df.columns and pd.notna(df['MACD'].iloc[-1])) else 0.0
-last_volatility = float(close_data.pct_change().dropna()[-30:].std() * 100) if (len(close_data) >= 30 and close_data.pct_change().dropna()[-30:].std() is not None) else 0.0
+# upewniamy się, że close_data istnieje i nie jest puste
+if 'close_data' in locals() and isinstance(close_data, pd.Series) and not close_data.empty:
+    last_price = float(close_data.iloc[-1]) if pd.notna(close_data.iloc[-1]) else 0.0
+else:
+    last_price = 0.0
+
+if 'df' in locals() and 'RSI14' in df.columns and pd.notna(df['RSI14'].iloc[-1]):
+    last_rsi = float(df['RSI14'].iloc[-1])
+else:
+    last_rsi = 0.0
+
+if 'df' in locals() and 'MACD' in df.columns and pd.notna(df['MACD'].iloc[-1]):
+    last_macd = float(df['MACD'].iloc[-1])
+else:
+    last_macd = 0.0
+
+if 'close_data' in locals() and isinstance(close_data, pd.Series) and len(close_data) >= 30:
+    last_volatility = float(close_data.pct_change().dropna()[-30:].std() * 100)
+else:
+    last_volatility = 0.0
 
 cols = st.columns(4)
 cols[0].metric("Price (USD)", f"${last_price:.2f}", key="price_metric")
