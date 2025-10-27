@@ -13,11 +13,30 @@ def get_stock_data(symbol="AAPL"):
         df = yf.download(symbol, period="1y", interval="1d")
         if df.empty:
             return None
-        # Jeśli kolumny wielopoziomowe, spłaszcz
+
+        # Spłaszczamy MultiIndex jeśli jest
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [' '.join(col).strip() for col in df.columns.values]
-        df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+
+        # Wybieramy kolumny które istnieją
+        cols_needed = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+        available_cols = [col for col in cols_needed if col in df.columns]
+
+        # Jeśli brak Close, użyj Adj Close
+        if 'Close' not in available_cols and 'Adj Close' in available_cols:
+            df['Close'] = df['Adj Close']
+            available_cols.append('Close')
+
+        # Sprawdzamy, które kolumny są wymagane do wykresu świecowego
+        required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+        existing_cols = [col for col in required_cols if col in df.columns]
+
+        if len(existing_cols) < 5:
+            st.warning(f"Brakuje wymaganych kolumn do wykresu świecowego: "
+                       f"{list(set(required_cols)-set(existing_cols))}")
+
         return df
+
     except Exception as e:
         st.error(f"Błąd pobierania danych: {e}")
         return None
@@ -48,7 +67,7 @@ def akcje_tab():
 
     if st.button("Pobierz dane"):
         df = get_stock_data(ticker)
-        if df is None:
+        if df is None or df.empty:
             st.warning("Nie znaleziono danych dla wybranego symbolu.")
             return
 
@@ -64,30 +83,33 @@ def akcje_tab():
 
         # Wykres świecowy + wolumen
         st.subheader(f"Wykres świecowy dla {ticker}")
-        fig = go.Figure()
-        fig.add_trace(go.Candlestick(
-            x=df.index,
-            open=df['Open'],
-            high=df['High'],
-            low=df['Low'],
-            close=df['Close'],
-            name=ticker
-        ))
-        fig.add_trace(go.Bar(
-            x=df.index,
-            y=df['Volume'],
-            name="Wolumen",
-            marker_color='blue',
-            yaxis='y2'
-        ))
-        fig.update_layout(
-            yaxis=dict(title='Cena'),
-            yaxis2=dict(title='Wolumen', overlaying='y', side='right', showgrid=False, position=0.15),
-            xaxis_rangeslider_visible=False,
-            height=600,
-            template='plotly_dark'
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        if all(col in df.columns for col in ['Open', 'High', 'Low', 'Close', 'Volume']):
+            fig = go.Figure()
+            fig.add_trace(go.Candlestick(
+                x=df.index,
+                open=df['Open'],
+                high=df['High'],
+                low=df['Low'],
+                close=df['Close'],
+                name=ticker
+            ))
+            fig.add_trace(go.Bar(
+                x=df.index,
+                y=df['Volume'],
+                name="Wolumen",
+                marker_color='blue',
+                yaxis='y2'
+            ))
+            fig.update_layout(
+                yaxis=dict(title='Cena'),
+                yaxis2=dict(title='Wolumen', overlaying='y', side='right', showgrid=False, position=0.15),
+                xaxis_rangeslider_visible=False,
+                height=600,
+                template='plotly_dark'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Brak pełnych danych do wykresu świecowego.")
 
         # Ostatnie 10 wierszy
         st.subheader("Ostatnie dane")
