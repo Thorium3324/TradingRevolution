@@ -2,24 +2,24 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-from ta.trend import SMAIndicator, EMAIndicator, MACD, ADXIndicator, CCIIndicator
-from ta.momentum import RSIIndicator, StochasticOscillator
+from ta.trend import SMAIndicator, EMAIndicator, MACD, ADXIndicator
+from ta.momentum import RSIIndicator, StochasticOscillator, CCIIndicator
 from ta.volatility import BollingerBands, AverageTrueRange
-from ta.volume import OnBalanceVolumeIndicator
 
 def akcje_tab():
-    st.subheader("Zakładka Akcje")
+    st.subheader("Zakładka Akcje - TradingRevolution Ultimate")
 
     # --- Dane wejściowe ---
-    ticker = st.text_input("Ticker akcji:", "AAPL").upper()
-    start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"))
-    end_date = st.date_input("Data końcowa:", pd.Timestamp.today())
-    interval = st.selectbox("Interwał:", ["1d", "1wk", "1mo"])
+    ticker = st.text_input("Wprowadź ticker akcji (np. AAPL, TSLA):", "AAPL").upper()
+    start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"), key=f"start_{ticker}")
+    end_date = st.date_input("Data końcowa:", pd.Timestamp.today(), key=f"end_{ticker}")
+    interval = st.selectbox("Interwał:", ["1d", "1wk", "1mo"], key=f"interval_{ticker}")
 
     if not ticker:
-        st.warning("Podaj ticker")
+        st.warning("Podaj ticker akcji")
         return
 
+    # --- Pobranie danych ---
     try:
         df = yf.download(ticker, start=start_date, end=end_date, interval=interval)
     except Exception as e:
@@ -32,13 +32,16 @@ def akcje_tab():
 
     df = df.copy()
     df.index = pd.to_datetime(df.index)
+
+    # Spłaszczenie MultiIndex jeśli istnieje
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [' '.join(col).strip() for col in df.columns.values]
 
+    # Konwersja kolumn na float
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # --- Znalezienie kolumn ---
+    # --- Wyszukiwanie wymaganych kolumn ---
     def find_price_col(df, keyword):
         for col in df.columns:
             if keyword.lower() in col.lower():
@@ -68,45 +71,83 @@ def akcje_tab():
     df['EMA20'] = EMAIndicator(close_data, 20).ema_indicator()
     df['EMA50'] = EMAIndicator(close_data, 50).ema_indicator()
     df['RSI14'] = RSIIndicator(close_data, 14).rsi()
+    df['CCI20'] = CCIIndicator(high_data, low_data, close_data, 20).cci()
+    df['Stochastic14'] = StochasticOscillator(high_data, low_data, close_data, 14).stoch()
+    df['ATR14'] = AverageTrueRange(high_data, low_data, close_data, 14).average_true_range()
+    df['ADX14'] = ADXIndicator(high_data, low_data, close_data, 14).adx()
     macd = MACD(close_data)
     df['MACD'] = macd.macd()
     df['MACD_signal'] = macd.macd_signal()
     bb = BollingerBands(close_data)
     df['BB_upper'] = bb.bollinger_hband()
     df['BB_lower'] = bb.bollinger_lband()
-    df['ATR14'] = AverageTrueRange(high_data, low_data, close_data, 14).average_true_range()
-    df['Stochastic'] = StochasticOscillator(high_data, low_data, close_data, 14).stoch()
-    df['CCI20'] = CCIIndicator(high_data, low_data, close_data, 20).cci()
-    df['ADX14'] = ADXIndicator(high_data, low_data, close_data, 14).adx()
-    if volume_data is not None:
-        df['OBV'] = OnBalanceVolumeIndicator(close_data, volume_data).on_balance_volume()
 
     # --- Wykres świecowy z wskaźnikami ---
-    fig = go.Figure()
-    fig.add_trace(go.Candlestick(x=df.index,
-                                 open=open_data,
-                                 high=high_data,
-                                 low=low_data,
-                                 close=close_data,
-                                 increasing_line_color='lime',
-                                 decreasing_line_color='red'))
-    fig.add_trace(go.Scatter(x=df.index, y=df['SMA20'], line=dict(color='orange', width=2), name="SMA20"))
-    fig.add_trace(go.Scatter(x=df.index, y=df['SMA50'], line=dict(color='yellow', width=2), name="SMA50"))
-    fig.add_trace(go.Scatter(x=df.index, y=df['SMA200'], line=dict(color='blue', width=2), name="SMA200"))
-    fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], line=dict(color='green', width=2), name="EMA20"))
-    fig.add_trace(go.Scatter(x=df.index, y=df['EMA50'], line=dict(color='purple', width=2), name="EMA50"))
-    fig.add_trace(go.Scatter(x=df.index, y=df['BB_upper'], line=dict(color='red', width=1, dash='dot'), name="BB Upper"))
-    fig.add_trace(go.Scatter(x=df.index, y=df['BB_lower'], line=dict(color='red', width=1, dash='dot'), name="BB Lower"))
-    fig.update_layout(title=f"{ticker} - Wskaźniki techniczne", template="plotly_dark", xaxis_rangeslider_visible=False, height=600)
-    st.plotly_chart(fig, use_container_width=True)
+    fig_candle = go.Figure()
+    fig_candle.add_trace(go.Candlestick(
+        x=df.index,
+        open=open_data,
+        high=high_data,
+        low=low_data,
+        close=close_data,
+        increasing_line_color='lime',
+        decreasing_line_color='red',
+        name="Świece"
+    ))
+    fig_candle.add_trace(go.Scatter(x=df.index, y=df['SMA20'], line=dict(color='orange', width=1), name="SMA20"))
+    fig_candle.add_trace(go.Scatter(x=df.index, y=df['SMA50'], line=dict(color='yellow', width=1), name="SMA50"))
+    fig_candle.add_trace(go.Scatter(x=df.index, y=df['SMA200'], line=dict(color='purple', width=1), name="SMA200"))
+    fig_candle.add_trace(go.Scatter(x=df.index, y=df['EMA20'], line=dict(color='green', width=1), name="EMA20"))
+    fig_candle.add_trace(go.Scatter(x=df.index, y=df['EMA50'], line=dict(color='blue', width=1), name="EMA50"))
+    fig_candle.add_trace(go.Scatter(x=df.index, y=df['BB_upper'], line=dict(color='red', width=1, dash='dot'), name="BB Upper"))
+    fig_candle.add_trace(go.Scatter(x=df.index, y=df['BB_lower'], line=dict(color='red', width=1, dash='dot'), name="BB Lower"))
+    fig_candle.update_layout(title=f"{ticker} - Świece i wskaźniki", template="plotly_dark", xaxis_rangeslider_visible=False, height=600)
+    st.plotly_chart(fig_candle, use_container_width=True)
 
-    # --- Panel wskaźników ---
-    st.subheader("Technical Analysis")
-    cols = st.columns(6)
-    cols[0].metric("Price (USD)", f"${close_data[-1]:.2f}")
-    cols[1].metric("RSI14", f"{df['RSI14'][-1]:.2f}")
-    cols[2].metric("MACD", f"{df['MACD'][-1]:.2f}")
-    cols[3].metric("ATR14", f"{df['ATR14'][-1]:.2f}")
-    cols[4].metric("ADX14", f"{df['ADX14'][-1]:.2f}")
+    # --- Wolumen jako słupki ---
     if volume_data is not None:
-        cols[5].metric("OBV", f"{df['OBV'][-1]:.2f}")
+        fig_vol = go.Figure()
+        fig_vol.add_trace(go.Bar(
+            x=df.index,
+            y=volume_data,
+            marker_color='skyblue',
+            name='Wolumen'
+        ))
+        fig_vol.update_layout(title="Wolumen", template="plotly_dark", height=200)
+        st.plotly_chart(fig_vol, use_container_width=True)
+
+    # --- Technical Analysis Panel ---
+    st.subheader("Technical Analysis Panel")
+    def safe_float(x, default=0.0):
+        try:
+            if pd.isna(x):
+                return default
+            return float(x)
+        except:
+            return default
+
+    last_price = safe_float(close_data.iloc[-1])
+    last_rsi = safe_float(df['RSI14'].iloc[-1])
+    last_macd = safe_float(df['MACD'].iloc[-1])
+    last_cci = safe_float(df['CCI20'].iloc[-1])
+    last_adx = safe_float(df['ADX14'].iloc[-1])
+    vol30 = safe_float(close_data.pct_change().dropna()[-30:].std() * 100 if len(close_data) >= 30 else 0.0)
+
+    cols = st.columns(6)
+    cols[0].metric("Price (USD)", f"${last_price:.2f}", key=f"price_{ticker}")
+    cols[1].metric("RSI (14)", f"{last_rsi:.2f}", key=f"rsi_{ticker}")
+    cols[2].metric("MACD", f"{last_macd:.3f}", key=f"macd_{ticker}")
+    cols[3].metric("CCI (20)", f"{last_cci:.2f}", key=f"cci_{ticker}")
+    cols[4].metric("ADX (14)", f"{last_adx:.2f}", key=f"adx_{ticker}")
+    cols[5].metric("Volatility (30d)", f"{vol30:.2f}%", key=f"vol_{ticker}")
+
+    if vol30 > 10:
+        st.warning("High volatility detected – expect larger price swings ⚠️")
+
+    # --- Dodatkowe sygnały ---
+    df['Signal'] = ""
+    df.loc[(close_data > df['SMA20']) & (last_rsi < 70), 'Signal'] = "BUY"
+    df.loc[(close_data < df['SMA20']) & (last_rsi > 30), 'Signal'] = "SELL"
+
+    st.subheader("Ostatnie sygnały Buy/Sell")
+    st.dataframe(df[['SMA20','SMA50','EMA20','EMA50','RSI14','MACD','Signal']].tail(20))
