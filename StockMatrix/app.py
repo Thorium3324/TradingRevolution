@@ -44,57 +44,62 @@ def akcje_tab():
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # Szukanie kolumny Close/Adj Close lub podobnej
-    possible_close_cols = [c for c in df.columns if 'close' in c.lower()]
-    if not possible_close_cols:
-        st.error(f"Nie znaleziono kolumny z ceną zamknięcia w danych dla {ticker}")
+    # --- Dynamiczne dopasowanie kolumn Open/High/Low/Close ---
+    def find_price_col(df, keyword):
+        for col in df.columns:
+            if keyword.lower() in col.lower():
+                return col
+        return None
+
+    open_col = find_price_col(df, 'Open')
+    high_col = find_price_col(df, 'High')
+    low_col = find_price_col(df, 'Low')
+    close_col = find_price_col(df, 'Close')  # Close, Adj Close lub Close AAPL
+
+    if not all([open_col, high_col, low_col, close_col]):
+        st.error(f"Brakuje wymaganych kolumn do wykresu świecowego: Open:{open_col}, High:{high_col}, Low:{low_col}, Close:{close_col}")
         return
 
-    close_col = possible_close_cols[0]  # Wybieramy pierwszą znalezioną kolumnę
-    st.info(f"Używana kolumna zamknięcia: {close_col}")
+    st.info(f"Używane kolumny: Open={open_col}, High={high_col}, Low={low_col}, Close={close_col}")
 
-    # Wymagane kolumny do wykresów
-    required_cols = ['Open', 'High', 'Low', close_col]
-    existing_cols = [c for c in required_cols if c in df.columns]
-    if len(existing_cols) < 4:
-        st.error(f"Brakuje wymaganych kolumn do wykresu świecowego: {required_cols}")
-        return
-
-    close = df[close_col]
+    open_data = df[open_col]
+    high_data = df[high_col]
+    low_data = df[low_col]
+    close_data = df[close_col]
 
     # --- Wskaźniki ---
-    df['SMA'] = SMAIndicator(close, sma_period).sma_indicator()
-    df['EMA'] = EMAIndicator(close, ema_period).ema_indicator()
-    df['RSI'] = RSIIndicator(close, rsi_period).rsi()
-    macd = MACD(close)
+    df['SMA'] = SMAIndicator(close_data, sma_period).sma_indicator()
+    df['EMA'] = EMAIndicator(close_data, ema_period).ema_indicator()
+    df['RSI'] = RSIIndicator(close_data, rsi_period).rsi()
+    macd = MACD(close_data)
     df['MACD'] = macd.macd()
     df['MACD_signal'] = macd.macd_signal()
-    bb = BollingerBands(close)
+    bb = BollingerBands(close_data)
     df['BB_upper'] = bb.bollinger_hband()
     df['BB_lower'] = bb.bollinger_lband()
 
     # --- Sygnały Buy/Sell ---
     df['Signal'] = ""
-    df.loc[(close > df['SMA']) & (df['RSI'] < 70), 'Signal'] = "BUY"
-    df.loc[(close < df['SMA']) & (df['RSI'] > 30), 'Signal'] = "SELL"
+    df.loc[(close_data > df['SMA']) & (df['RSI'] < 70), 'Signal'] = "BUY"
+    df.loc[(close_data < df['SMA']) & (df['RSI'] > 30), 'Signal'] = "SELL"
 
     # --- Formacje świecowe ---
-    df['Hammer'] = ((df['High'] - df['Low']) > 3*(df['Open'] - close)) & \
-                   (((close - df['Low']) / (0.001 + df['High'] - df['Low'])) > 0.6)
-    df['Doji'] = abs(close - df['Open']) / (df['High'] - df['Low'] + 0.001) < 0.1
-    df['Engulfing'] = ((close > df['Open']) & (close.shift(1) < df['Open'].shift(1)) & \
-                       (close > df['Open'].shift(1))) | \
-                      ((close < df['Open']) & (close.shift(1) > df['Open'].shift(1)) & \
-                       (close < df['Open'].shift(1)))
+    df['Hammer'] = ((high_data - low_data) > 3*(open_data - close_data)) & \
+                   (((close_data - low_data) / (0.001 + high_data - low_data)) > 0.6)
+    df['Doji'] = abs(close_data - open_data) / (high_data - low_data + 0.001) < 0.1
+    df['Engulfing'] = ((close_data > open_data) & (close_data.shift(1) < open_data.shift(1)) & \
+                       (close_data > open_data.shift(1))) | \
+                      ((close_data < open_data) & (close_data.shift(1) > open_data.shift(1)) & \
+                       (close_data < open_data.shift(1)))
 
     # --- Wykres świecowy ---
     fig_candle = go.Figure()
     fig_candle.add_trace(go.Candlestick(
         x=df.index,
-        open=df['Open'],
-        high=df['High'],
-        low=df['Low'],
-        close=close,
+        open=open_data,
+        high=high_data,
+        low=low_data,
+        close=close_data,
         increasing_line_color='lime',
         decreasing_line_color='red',
         name="Świece"
