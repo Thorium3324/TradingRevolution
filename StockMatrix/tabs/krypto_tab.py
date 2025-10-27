@@ -77,18 +77,19 @@ def krypto_tab():
                       xaxis_rangeslider_visible=False, height=600)
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- Panel wskaźników ---
-    st.subheader("Technical Analysis")
-    last_price = close_data.iloc[-1] if not close_data.empty else 0
-    last_rsi = df['RSI14'].iloc[-1] if 'RSI14' in df.columns else 0
-    last_macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else 0
-    last_volatility = close_data.pct_change().dropna()[-30:].std() * 100 if len(close_data) >= 30 else 0
+ # --- Panel wskaźników ---
+st.subheader("Technical Analysis")
 
-    cols = st.columns(4)
-    cols[0].metric("Price (USD)", f"${last_price:.2f}", key="price_metric")
-    cols[1].metric("RSI (14)", f"{last_rsi:.2f}", key="rsi_metric")
-    cols[2].metric("MACD", f"{last_macd:.2f}", key="macd_metric")
-    cols[3].metric("Volatility 30d", f"{last_volatility:.2f}%", key="vol_metric")
+last_price = float(close_data.iloc[-1]) if (not close_data.empty and pd.notna(close_data.iloc[-1])) else 0.0
+last_rsi = float(df['RSI14'].iloc[-1]) if ('RSI14' in df.columns and pd.notna(df['RSI14'].iloc[-1])) else 0.0
+last_macd = float(df['MACD'].iloc[-1]) if ('MACD' in df.columns and pd.notna(df['MACD'].iloc[-1])) else 0.0
+last_volatility = float(close_data.pct_change().dropna()[-30:].std() * 100) if (len(close_data) >= 30 and close_data.pct_change().dropna()[-30:].std() is not None) else 0.0
 
-    if last_volatility > 10:
-        st.warning("High volatility detected – expect larger price swings ⚠️")
+cols = st.columns(4)
+cols[0].metric("Price (USD)", f"${last_price:.2f}", key="price_metric")
+cols[1].metric("RSI (14)", f"{last_rsi:.2f}", key="rsi_metric")
+cols[2].metric("MACD", f"{last_macd:.2f}", key="macd_metric")
+cols[3].metric("Volatility 30d", f"{last_volatility:.2f}%", key="vol_metric")
+
+if last_volatility > 10:
+    st.warning("High volatility detected – expect larger price swings ⚠️")
