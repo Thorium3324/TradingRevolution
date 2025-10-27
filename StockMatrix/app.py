@@ -1,54 +1,40 @@
+# app.py
 import streamlit as st
-import os
-import importlib.util
+from tabs.akcje_tab import akcje_tab
 
-# Funkcja do dynamicznego importu zakładek
-def import_tab(tab_name):
-    tab_path = os.path.join(os.path.dirname(__file__), "tabs", f"{tab_name}.py")
-    if not os.path.exists(tab_path):
-        st.error(f"❌ Nie znaleziono zakładki: {tab_name}")
-        return None
-    spec = importlib.util.spec_from_file_location(tab_name, tab_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-# Import wszystkich zakładek
-akcje_tab_module = import_tab("akcje_tab")
-krypto_tab_module = import_tab("krypto_tab")
-portfolio_tab_module = import_tab("portfolio_tab")
-strategie_tab_module = import_tab("strategie_tab")
-alerty_tab_module = import_tab("alerty_tab")
-analityka_tab_module = import_tab("analityka_tab")
-ai_tab_module = import_tab("ai_tab")
-
-# Konfiguracja strony
-st.set_page_config(page_title="TradingRevolution", layout="wide")
-st.sidebar.title("🚀 TradingRevolution")
-
-# ❌ Usunięto obrazki z assets
-# st.sidebar.image("assets/logo.png", use_container_width=True)
-
-# Menu zakładek
-menu = st.sidebar.radio(
-    "Wybierz zakładkę:",
-    ["Akcje","Krypto","Portfolio","Strategie","Alerty","Analityka","AI"]
+# --------------------------
+# Ustawienia strony
+# --------------------------
+st.set_page_config(
+    page_title="Trading Revolution",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Wywołanie odpowiedniej zakładki
-if menu == "Akcje" and akcje_tab_module:
-    akcje_tab_module.akcje_tab()
-elif menu == "Krypto" and krypto_tab_module:
-    krypto_tab_module.krypto_tab()
-elif menu == "Portfolio" and portfolio_tab_module:
-    portfolio_tab_module.portfolio_tab()
-elif menu == "Strategie" and strategie_tab_module:
-    strategie_tab_module.strategie_tab()
-elif menu == "Alerty" and alerty_tab_module:
-    alerty_tab_module.alerty_tab()
-elif menu == "Analityka" and analityka_tab_module:
-    analityka_tab_module.analityka_tab()
-elif menu == "AI" and ai_tab_module:
-    ai_tab_module.ai_tab()
-else:
-    st.info("🚧 Ta zakładka jest w budowie lub brak pliku.")
+st.sidebar.title("Trading Revolution")
+
+# Jeśli nie masz już logo, usuń obrazek lub zastąp tekstem
+# st.sidebar.image("assets/logo.png", use_container_width=True)
+st.sidebar.markdown("### 🚀 TradingRevolution")
+
+# --------------------------
+# Zakładki
+# --------------------------
+st.title("Trading Revolution Dashboard")
+
+tabs = ["Akcje"]  # Dodajemy kolejne zakładki później: "Krypto", "Portfolio", "Strategie" itd.
+selected_tab = st.sidebar.radio("Wybierz zakładkę:", tabs)
+
+# --------------------------
+# Wywołanie zakładek
+# --------------------------
+if selected_tab == "Akcje":
+    akcje_tab()
+
+# Tutaj w przyszłości możemy dodać np.
+# elif selected_tab == "Krypto":
+#     krypto_tab()
+# elif selected_tab == "Portfolio":
+#     portfolio_tab()
+# elif selected_tab == "Strategie":
+#     strategie_tab()
