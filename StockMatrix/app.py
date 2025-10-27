@@ -36,21 +36,24 @@ def akcje_tab():
     df = df.copy()
     df.index = pd.to_datetime(df.index)
 
+    # Spłaszczenie MultiIndex jeśli istnieje
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [' '.join(col).strip() for col in df.columns.values]
 
+    # Konwersja wszystkich kolumn na float
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # --- Dynamiczne określenie kolumny Close ---
-    if 'Close' in df.columns:
-        close_col = 'Close'
-    elif 'Adj Close' in df.columns:
-        close_col = 'Adj Close'
-    else:
-        st.error("Brak kolumny Close lub Adj Close w danych")
+    # Szukanie kolumny Close/Adj Close lub podobnej
+    possible_close_cols = [c for c in df.columns if 'close' in c.lower()]
+    if not possible_close_cols:
+        st.error(f"Nie znaleziono kolumny z ceną zamknięcia w danych dla {ticker}")
         return
 
+    close_col = possible_close_cols[0]  # Wybieramy pierwszą znalezioną kolumnę
+    st.info(f"Używana kolumna zamknięcia: {close_col}")
+
+    # Wymagane kolumny do wykresów
     required_cols = ['Open', 'High', 'Low', close_col]
     existing_cols = [c for c in required_cols if c in df.columns]
     if len(existing_cols) < 4:
@@ -128,7 +131,7 @@ def akcje_tab():
 
     # --- Tabela sygnałów i formacji ---
     st.subheader("Ostatnie sygnały Buy/Sell i formacje świecowe")
-    st.dataframe(df[['Close','SMA','EMA','RSI','Signal','Hammer','Doji','Engulfing']].tail(20))
+    st.dataframe(df[[close_col,'SMA','EMA','RSI','Signal','Hammer','Doji','Engulfing']].tail(20))
 
 
 # --- Sidebar z zakładkami ---
