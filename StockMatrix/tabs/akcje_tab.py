@@ -1,135 +1,117 @@
+# tabs/akcje_tab.py
 import streamlit as st
 import pandas as pd
-import numpy as np
 import yfinance as yf
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator, StochasticOscillator, MomentumIndicator
 from ta.volatility import BollingerBands, AverageTrueRange
 from ta.volume import OnBalanceVolumeIndicator
-from datetime import datetime, timedelta
-import plotly.graph_objects as go
+from ta.trend import CCIIndicator
 
-# =========================
-# Funkcja pobierania danych
-# =========================
-def get_stock_data(ticker, period="6mo", interval="1d"):
+def get_stock_data(symbol, period="6mo"):
     try:
-        df = yf.download(ticker, period=period, interval=interval)
+        df = yf.download(symbol, period=period)
         if df.empty:
+            st.warning(f"Brak danych dla symbolu: {symbol}")
             return None
-        df = df.reset_index()
-        df.rename(columns=lambda x: x.replace(" ", ""), inplace=True)
+        df.reset_index(inplace=True)
+        df.columns = [col.replace(" ", "_") for col in df.columns]  # unikamy spacji
         return df
     except Exception as e:
         st.error(f"Błąd pobierania danych: {e}")
         return None
 
-# =========================
-# Funkcja dodająca wskaźniki techniczne
-# =========================
 def add_technical_indicators(df):
-    df['SMA20'] = SMAIndicator(df['Close'], 20).sma_indicator()
-    df['SMA50'] = SMAIndicator(df['Close'], 50).sma_indicator()
-    df['SMA200'] = SMAIndicator(df['Close'], 200).sma_indicator()
-    df['EMA20'] = EMAIndicator(df['Close'], 20).ema_indicator()
-    df['EMA50'] = EMAIndicator(df['Close'], 50).ema_indicator()
-    df['RSI'] = RSIIndicator(df['Close'], 14).rsi()
-    macd = MACD(df['Close'])
-    df['MACD'] = macd.macd()
-    df['MACD_signal'] = macd.macd_signal()
-    bb = BollingerBands(df['Close'], 20, 2)
-    df['BB_upper'] = bb.bollinger_hband()
-    df['BB_lower'] = bb.bollinger_lband()
-    df['ATR'] = AverageTrueRange(df['High'], df['Low'], df['Close'], 14).average_true_range()
-    df['Stoch'] = StochasticOscillator(df['High'], df['Low'], df['Close'], 14, 3).stoch()
-    df['CCI'] = pd.Series(np.nan)  # Możesz dodać obliczenia CCI jeśli chcesz
-    df['Momentum'] = MomentumIndicator(df['Close'], 5).momentum()
-    df['OBV'] = OnBalanceVolumeIndicator(df['Close'], df['Volume']).on_balance_volume()
+    # SMA
+    if 'Close' in df:
+        df['SMA20'] = SMAIndicator(df['Close'], 20).sma_indicator()
+        df['SMA50'] = SMAIndicator(df['Close'], 50).sma_indicator()
+        df['SMA200'] = SMAIndicator(df['Close'], 200).sma_indicator()
+        df['EMA20'] = EMAIndicator(df['Close'], 20).ema_indicator()
+        df['EMA50'] = EMAIndicator(df['Close'], 50).ema_indicator()
+        df['RSI'] = RSIIndicator(df['Close'], 14).rsi()
+        macd = MACD(df['Close'])
+        df['MACD'] = macd.macd()
+        df['MACD_signal'] = macd.macd_signal()
+        df['Momentum5'] = MomentumIndicator(df['Close'], 5).momentum()
+    
+    if all(col in df for col in ['High', 'Low', 'Close']):
+        df['ATR14'] = AverageTrueRange(df['High'], df['Low'], df['Close'], 14).average_true_range()
+        df['Bollinger_High'] = BollingerBands(df['Close'], 20, 2).bollinger_hband()
+        df['Bollinger_Low'] = BollingerBands(df['Close'], 20, 2).bollinger_lband()
+        df['CCI20'] = CCIIndicator(df['High'], df['Low'], df['Close'], 20).cci()
+        df['Stochastic'] = StochasticOscillator(df['High'], df['Low'], df['Close'], 14).stoch()
+    
+    if all(col in df for col in ['Close', 'Volume']):
+        df['OBV'] = OnBalanceVolumeIndicator(df['Close'], df['Volume']).on_balance_volume()
+    
     return df
 
-# =========================
-# Funkcja analiz fundamentalnych
-# =========================
-def fundamental_analysis(ticker):
-    stock = yf.Ticker(ticker)
-    info = stock.info
-    results = {
-        "P/E": info.get("trailingPE", 0),
-        "EPS": info.get("trailingEps", 0),
-        "MarketCap": info.get("marketCap", 0),
-        "DividendYield": info.get("dividendYield", 0),
-        "Beta": info.get("beta", 0),
-        "Volatility_30d": 0.0  # Można obliczyć z cen historycznych
-    }
-    return results
-
-# =========================
-# Zakładka Akcje
-# =========================
 def akcje_tab():
-    st.title("TradingRevolution - Akcje")
-    ticker = st.text_input("Wpisz symbol akcji (np. AAPL, TSLA)", "AAPL").upper()
-
-    df = get_stock_data(ticker)
+    st.title("Zakładka Akcje – TradingRevolution")
+    symbol = st.text_input("Wpisz ticker akcji (np. AAPL, TSLA, MSFT):", value="AAPL")
+    
+    df = get_stock_data(symbol)
     if df is None or df.empty:
-        st.warning("Nie znaleziono danych dla wybranego symbolu.")
+        st.warning("Nie znaleziono danych lub symbol jest niepoprawny.")
         return
 
     df = add_technical_indicators(df)
-    fin_results = fundamental_analysis(ticker)
-
-    # =========================
-    # Podstawowe metryki
-    # =========================
-    st.subheader(f"Podstawowe dane - {ticker}")
-    col1, col2, col3, col4 = st.columns(4)
-    last_close = df['Close'].iloc[-1]
-    col1.metric("Cena (USD)", f"${last_close:.2f}")
-    col2.metric("Zmienność 30d", f"{fin_results['Volatility_30d']*100:.2f}%")
-    col3.metric("P/E", f"{fin_results['P/E']:.2f}")
-    col4.metric("EPS", f"{fin_results['EPS']:.2f}")
-
-    # =========================
-    # Zaawansowane wskaźniki techniczne
-    # =========================
-    st.subheader(f"Zaawansowane wskaźniki techniczne - {ticker}")
-    col1, col2, col3, col4 = st.columns(4)
-
-    # Kolumna 1
-    col1.metric("SMA20", f"{df['SMA20'].iloc[-1]:.2f}")
-    col1.metric("SMA50", f"{df['SMA50'].iloc[-1]:.2f}")
-    col1.metric("SMA200", f"{df['SMA200'].iloc[-1]:.2f}")
-    col1.metric("EMA20", f"{df['EMA20'].iloc[-1]:.2f}")
-
-    # Kolumna 2
-    col2.metric("EMA50", f"{df['EMA50'].iloc[-1]:.2f}")
-    col2.metric("RSI(14)", f"{df['RSI'].iloc[-1]:.2f}")
-    col2.metric("MACD", f"{df['MACD'].iloc[-1]:.2f}")
-    col2.metric("MACD Signal", f"{df['MACD_signal'].iloc[-1]:.2f}")
-
-    # Kolumna 3
-    col3.metric("Bollinger Upper", f"{df['BB_upper'].iloc[-1]:.2f}")
-    col3.metric("Bollinger Lower", f"{df['BB_lower'].iloc[-1]:.2f}")
-    col3.metric("ATR(14)", f"{df['ATR'].iloc[-1]:.2f}")
-    col3.metric("Stochastic", f"{df['Stoch'].iloc[-1]:.2f}")
-
-    # Kolumna 4
-    col4.metric("CCI(20)", f"{df['CCI'].iloc[-1] if 'CCI' in df else 0:.2f}")
-    col4.metric("Momentum(5)", f"{df['Momentum'].iloc[-1]:.2f}")
-    col4.metric("OBV", f"{df['OBV'].iloc[-1]:.0f}")
-
-    # =========================
-    # Wykres świecowy
-    # =========================
-    st.subheader(f"Wykres świecowy - {ticker}")
-    fig = go.Figure(data=[go.Candlestick(
-        x=df['Date'],
-        open=df['Open'],
-        high=df['High'],
-        low=df['Low'],
-        close=df['Close'],
-        increasing_line_color='green',
-        decreasing_line_color='red'
-    )])
-    fig.update_layout(xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, use_container_width=True)
+    
+    # Wskaźniki metryki
+    col1, col2, col3 = st.columns(3)
+    
+    col1.metric("Cena (USD)", f"{df['Close'].iloc[-1]:.2f}" if 'Close' in df else "N/A")
+    col2.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.2f}" if 'RSI' in df else "N/A")
+    col3.metric("MACD", f"{df['MACD'].iloc[-1]:.2f}" if 'MACD' in df else "N/A")
+    
+    # Wyświetlenie wykresu świecowego
+    import plotly.graph_objects as go
+    if all(col in df for col in ['Open', 'High', 'Low', 'Close']):
+        fig = go.Figure(data=[go.Candlestick(
+            x=df['Date'],
+            open=df['Open'],
+            high=df['High'],
+            low=df['Low'],
+            close=df['Close'],
+            name=symbol
+        )])
+        fig.update_layout(title=f"Wykres świecowy: {symbol}", xaxis_title="Data", yaxis_title="Cena USD")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Brakuje kolumn do wykresu świecowego.")
+    
+    # Wyświetlenie wszystkich wskaźników
+    st.subheader("Wskaźniki techniczne")
+    indicators = ['SMA20','SMA50','SMA200','EMA20','EMA50','RSI','MACD','MACD_signal',
+                  'ATR14','Bollinger_High','Bollinger_Low','CCI20','Stochastic','Momentum5','OBV']
+    indicator_data = {i: df[i].iloc[-1] if i in df else "N/A" for i in indicators}
+    st.write(indicator_data)
+    
+    # Analizy fundamentalne (jeśli dostępne w yf.Ticker)
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.info
+        st.subheader("Analiza fundamentalna")
+        st.metric("P/E", info.get("trailingPE", "N/A"))
+        st.metric("EPS", info.get("trailingEps", "N/A"))
+        st.metric("Market Cap", info.get("marketCap", "N/A"))
+        st.metric("Dividend Yield", info.get("dividendYield", "N/A"))
+        st.metric("Beta", info.get("beta", "N/A"))
+    except Exception as e:
+        st.warning(f"Nie udało się pobrać danych fundamentalnych: {e}")
+    
+    # Dodatkowe analizy
+    st.subheader("Analizy dodatkowe")
+    if 'Close' in df:
+        vol30 = df['Close'].pct_change().rolling(30).std().iloc[-1]*100
+        st.metric("Volatility 30d", f"{vol30:.2f}%")
+    
+    # Sygnalizacja trendu
+    trend_signal = "Neutral"
+    if 'SMA20' in df and 'SMA50' in df:
+        if df['SMA20'].iloc[-1] > df['SMA50'].iloc[-1]:
+            trend_signal = "Kupno"
+        elif df['SMA20'].iloc[-1] < df['SMA50'].iloc[-1]:
+            trend_signal = "Sprzedaż"
+    st.metric("Signal Trend", trend_signal)
