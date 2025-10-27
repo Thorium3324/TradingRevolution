@@ -1,3 +1,5 @@
-import yfinance as yf
+# utils/alerts.py
 
-def check_alert
+def check_alerts():
+    # Minimalna funkcja testowa, później możesz rozbudować
+    return "✅ Alerty działają poprawnie!"
