@@ -6,16 +6,14 @@ from ta.trend import SMAIndicator, EMAIndicator, MACD, ADXIndicator
 from ta.momentum import RSIIndicator, StochasticOscillator
 from ta.volatility import BollingerBands, AverageTrueRange
 
-st.set_page_config(page_title="TradingRevolution Ultimate", layout="wide", page_icon="💹")
-
-# --- Funkcja zakładki Akcje ---
-def akcje_tab():
-    st.subheader("Zakładka Akcje - TradingRevolution Ultimate")
+def krypto_tab():
+    st.subheader("Zakładka Krypto - TradingRevolution Ultimate")
 
     # --- Dane wejściowe ---
-    ticker = st.text_input("Ticker:", "AAPL").upper()
+    ticker = st.text_input("Krypto ticker (np. BTC-USD, ETH-USD):", "BTC-USD").upper()
     start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"))
     end_date = st.date_input("Data końcowa:", pd.Timestamp.today())
+    interval = st.selectbox("Interwał:", ["1d", "1h", "4h", "1wk"])
 
     # Slider do okresów wskaźników
     sma_period = st.sidebar.slider("Okres SMA", 5, 100, 20)
@@ -26,11 +24,16 @@ def akcje_tab():
     atr_period = st.sidebar.slider("Okres ATR", 5, 50, 14)
 
     if not ticker:
-        st.warning("Podaj ticker akcji")
+        st.warning("Podaj ticker kryptowaluty")
         return
 
     # --- Pobranie danych ---
-    df = yf.download(ticker, start=start_date, end=end_date)
+    try:
+        df = yf.download(ticker, start=start_date, end=end_date, interval=interval)
+    except Exception as e:
+        st.error(f"Błąd pobierania danych: {e}")
+        return
+
     if df.empty:
         st.warning(f"Brak danych dla {ticker}")
         return
@@ -42,7 +45,7 @@ def akcje_tab():
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [' '.join(col).strip() for col in df.columns.values]
 
-    # Konwersja wszystkich kolumn na float
+    # Konwersja kolumn na float
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
@@ -147,7 +150,6 @@ def akcje_tab():
     macd_value = df['MACD'][-1]
     volatility_30d = close_data.pct_change().dropna()[-30:].std() * 100
 
-    # Ogólny sygnał
     signal_strength = 6
     signal = "Neutral"
     if rsi_value < 30 and close_data[-1] > df['SMA'][-1]:
@@ -171,14 +173,3 @@ def akcje_tab():
     # --- Tabela sygnałów i formacji ---
     st.subheader("Ostatnie sygnały Buy/Sell i formacje świecowe")
     st.dataframe(df[[close_col,'SMA','EMA','RSI','Signal','Hammer','Doji','Engulfing','ATR','Stochastic','ADX']].tail(20))
-
-
-# --- Sidebar z zakładkami ---
-st.sidebar.title("TradingRevolution Ultimate")
-tab = st.sidebar.radio("Wybierz zakładkę:", ["Akcje","Krypto","Portfolio","Backtesting","AI Predykcje","Heatmapa","Alerty","Live Trading"])
-
-# --- Wywołanie zakładek ---
-if tab == "Akcje":
-    akcje_tab()
-else:
-    st.info(f"Zakładka {tab} w budowie")
