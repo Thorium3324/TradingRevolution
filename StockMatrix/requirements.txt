@@ -1,0 +1,14 @@
+streamlit
+pandas
+numpy
+plotly
+yfinance
+ta
+backtrader
+ccxt
+scikit-learn
+xgboost
+matplotlib
+seaborn
+requests
+plotly-express
