@@ -1,4 +1,4 @@
-# Poprawiona wersja tabs/krypto_tab.py z unikalnymi ID dla widgetów, aby uniknąć StreamlitDuplicateElementId
+# Poprawiona wersja tabs/krypto_tab.py – unikamy błędu TypeError przy ostatniej cenie
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -103,10 +103,19 @@ def krypto_tab():
     # --- Panel wskaźników ---
     st.subheader("Technical Analysis")
     cols = st.columns(6)
-    cols[0].metric("Price (USD)", f"${close_data[-1]:.2f}", key="price_metric")
-    cols[1].metric("RSI14", f"{df['RSI14'][-1]:.2f}", key="rsi_metric")
-    cols[2].metric("MACD", f"{df['MACD'][-1]:.2f}", key="macd_metric")
-    cols[3].metric("ATR14", f"{df['ATR14'][-1]:.2f}", key="atr_metric")
-    cols[4].metric("ADX14", f"{df['ADX14'][-1]:.2f}", key="adx_metric")
+    
+    last_price = close_data.iloc[-1] if len(close_data) > 0 else 0
+    last_rsi = df['RSI14'].iloc[-1] if len(df['RSI14']) > 0 else 0
+    last_macd = df['MACD'].iloc[-1] if len(df['MACD']) > 0 else 0
+    last_atr = df['ATR14'].iloc[-1] if len(df['ATR14']) > 0 else 0
+    last_adx = df['ADX14'].iloc[-1] if len(df['ADX14']) > 0 else 0
+    last_obv = df['OBV'].iloc[-1] if (volume_data is not None and 'OBV' in df.columns and len(df['OBV']) > 0) else 0
+
+    cols[0].metric("Price (USD)", f"${last_price:.2f}", key="price_metric")
+    cols[1].metric("RSI14", f"{last_rsi:.2f}", key="rsi_metric")
+    cols[2].metric("MACD", f"{last_macd:.2f}", key="macd_metric")
+    cols[3].metric("ATR14", f"{last_atr:.2f}", key="atr_metric")
+    cols[4].metric("ADX14", f"{last_adx:.2f}", key="adx_metric")
     if volume_data is not None:
-        cols[5].metric("OBV", f"{df['OBV'][-1]:.2f}", key="obv_metric")
+        cols[5].metric("OBV", f"{last_obv:.2f}", key="obv_metric")
+
