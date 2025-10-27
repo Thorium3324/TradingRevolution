@@ -4,17 +4,21 @@ from utils.data_fetch import get_stock_data, get_crypto_data
 from utils.indicators import add_technical_indicators
 from utils.strategies import sma_crossover_strategy, multi_strategy_backtest
 from utils.portfolio import parse_holdings, calculate_portfolio, plot_portfolio_pie, plot_portfolio_3d
-from utils.ml_predict import predict_next_day, predict_trend
-from utils.alerts import set_alert, check_alert
+from utils.ml_predict import predict_trend
+from utils.alerts import set_alert, check_alerts
 from utils.heatmap import plot_prediction_heatmap
+from utils.broker_integration import fetch_live_price, place_order
 import plotly.graph_objects as go
 import plotly.express as px
+import pandas as pd
 
-st.set_page_config(page_title="TradingRevolution Ultra EVO 5.2", layout="wide", page_icon="💹")
+st.set_page_config(page_title="TradingRevolution Ultra EVO 5.3", layout="wide", page_icon="💹")
 st.markdown('<link rel="stylesheet" href="styles.css">', unsafe_allow_html=True)
-
-st.sidebar.title("TradingRevolution Ultra EVO 5.2")
+st.sidebar.title("TradingRevolution Ultra EVO 5.3")
 tabs = st.sidebar.radio("Sekcje:", ["Akcje","Krypto","Portfolio","Backtesting","AI Predykcje","Heatmapa","Alerty","Live Trading"])
+
+# ... Wszystkie zakładki jak w poprzedniej wersji z rozbudowanymi AI i heatmapą
+
 
 # --- AKCJE ---
 if tabs=="Akcje":
@@ -79,3 +83,4 @@ elif tabs=="Alerty":
 # --- LIVE TRADING ---
 elif tabs=="Live Trading":
     st.warning("Live trading dostępny po konfiguracji API w broker_integration.py")
+
