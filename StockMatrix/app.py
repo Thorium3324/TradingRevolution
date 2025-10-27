@@ -1,32 +1,33 @@
 import streamlit as st
-from tabs.akcje import akcje_tab
-from tabs.krypto import krypto_tab
-from tabs.portfolio import portfolio_tab
-from tabs.ml_predict import ml_tab
-from tabs.heatmapa import heatmap_tab
-from tabs.strategies import strategies_tab
-from tabs.alerts import alerts_tab
+from tabs.akcje_tab import akcje_tab
+from tabs.krypto_tab import krypto_tab
+from tabs.portfolio_tab import portfolio_tab
+from tabs.strategie_tab import strategie_tab
+from tabs.alerty_tab import alerty_tab
 
-st.set_page_config(page_title="TradingRevolution Ultimate", layout="wide", page_icon="💹")
-st.sidebar.title("TradingRevolution Ultimate")
+st.set_page_config(page_title="TradingRevolution", layout="wide", page_icon="💹")
 
-tab = st.sidebar.radio("Wybierz zakładkę:", [
-    "Akcje","Krypto","Portfolio","AI Predykcje","Heatmapa","Strategie","Alerty"
-])
+# Load CSS
+try:
+    with open("style.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+except FileNotFoundError:
+    pass
+
+# Sidebar & nav
+st.sidebar.image("assets/logo.png", use_column_width=True) if st.sidebar else None
+st.sidebar.title("TradingRevolution")
+tab = st.sidebar.radio("Nawigacja", ["Akcje", "Krypto", "Strategie", "Portfolio", "Alerty"])
 
 if tab == "Akcje":
     akcje_tab()
 elif tab == "Krypto":
     krypto_tab()
+elif tab == "Strategie":
+    strategie_tab()
 elif tab == "Portfolio":
     portfolio_tab()
-elif tab == "AI Predykcje":
-    ml_tab()
-elif tab == "Heatmapa":
-    heatmap_tab()
-elif tab == "Strategie":
-    strategies_tab()
 elif tab == "Alerty":
-    alerts_tab()
+    alerty_tab()
 else:
     st.info("Zakładka w budowie")
