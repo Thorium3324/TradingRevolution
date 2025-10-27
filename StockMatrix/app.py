@@ -1,33 +1,41 @@
 import streamlit as st
+import sys, os
+
+# --- ŚCIEŻKI ---
+sys.path.append(os.path.join(os.path.dirname(__file__), 'tabs'))
+sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
+
+# --- IMPORTY ZAKŁADEK ---
 from tabs.akcje_tab import akcje_tab
 from tabs.krypto_tab import krypto_tab
 from tabs.portfolio_tab import portfolio_tab
 from tabs.strategie_tab import strategie_tab
 from tabs.alerty_tab import alerty_tab
+from tabs.analityka_tab import analityka_tab
+from tabs.ai_tab import ai_tab
 
-st.set_page_config(page_title="TradingRevolution", layout="wide", page_icon="💹")
+# --- USTAWIENIA STRONY ---
+st.set_page_config(page_title="TradingRevolution", layout="wide")
+st.title("🚀 TradingRevolution — Ultimate Trading Dashboard")
 
-# Load CSS
-try:
-    with open("style.css") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-except FileNotFoundError:
-    pass
+# --- MENU ---
+tabs = st.sidebar.radio(
+    "📊 Wybierz sekcję:",
+    ["Akcje", "Krypto", "Portfolio", "Strategie", "Alerty", "Analityka", "AI"]
+)
 
-# Sidebar & nav
-st.sidebar.image("assets/logo.png", use_column_width=True) if st.sidebar else None
-st.sidebar.title("TradingRevolution")
-tab = st.sidebar.radio("Nawigacja", ["Akcje", "Krypto", "Strategie", "Portfolio", "Alerty"])
-
-if tab == "Akcje":
+# --- ROUTING ---
+if tabs == "Akcje":
     akcje_tab()
-elif tab == "Krypto":
+elif tabs == "Krypto":
     krypto_tab()
-elif tab == "Strategie":
-    strategie_tab()
-elif tab == "Portfolio":
+elif tabs == "Portfolio":
     portfolio_tab()
-elif tab == "Alerty":
+elif tabs == "Strategie":
+    strategie_tab()
+elif tabs == "Alerty":
     alerty_tab()
-else:
-    st.info("Zakładka w budowie")
+elif tabs == "Analityka":
+    analityka_tab()
+elif tabs == "AI":
+    ai_tab()
