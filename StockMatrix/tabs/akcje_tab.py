@@ -104,14 +104,20 @@ def akcje_tab():
     fig_candle.update_layout(title=f"{ticker} - Świece i wskaźniki", template="plotly_dark", xaxis_rangeslider_visible=False, height=600)
     st.plotly_chart(fig_candle, use_container_width=True)
 
-    # --- Wolumen jako słupki ---
-    if volume_data is not None:
-        fig_vol = go.Figure()
-        fig_vol.add_trace(go.Bar(
-            x=df.index,
-            y=volume_data,
-            marker_color='skyblue',
-            name='Wolumen'
-        ))
-        fig_vol.update_layout(title="Wolumen", template="plotly_dark", height=200)
-        st.plotly_chart(fig_vol, use_container_width=True)
+   # --- Wolumen jako słupki ---
+if volume_data is not None:
+    fig_vol = go.Figure()
+    fig_vol.add_trace(go.Bar(
+        x=df.index,
+        y=volume_data,
+        marker_color='rgba(135, 206, 235, 0.7)',  # lekko przezroczysty niebieski
+        name='Wolumen'
+    ))
+    fig_vol.update_layout(
+        title="Wolumen",
+        template="plotly_dark",
+        height=350,  # większa wysokość
+        margin=dict(t=40, b=20),
+        xaxis=dict(rangeslider=dict(visible=False)),
+    )
+    st.plotly_chart(fig_vol, use_container_width=True)
