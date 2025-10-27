@@ -26,8 +26,14 @@ if tabs == "Akcje":
             # --- Przygotowanie danych ---
             df = df.copy()
             df.index = pd.to_datetime(df.index)
+            
             for col in ['Open','High','Low','Close','Adj Close','Volume']:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                if col in df.columns:
+                    # jeśli kolumna jest DataFrame, wybieramy pierwszą kolumnę
+                    if isinstance(df[col], pd.DataFrame):
+                        df[col] = df[col].iloc[:,0]
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+            
             df = df.dropna(subset=['Open','High','Low','Close'])
             
             # --- Wskaźniki ---
@@ -42,7 +48,7 @@ if tabs == "Akcje":
             df['BB_upper'] = bb.bollinger_hband()
             df['BB_lower'] = bb.bollinger_lband()
             
-            # --- Proste sygnały buy/sell ---
+            # --- Sygnały buy/sell ---
             df['Signal'] = ""
             df.loc[(df['Close'] > df['SMA20']) & (df['RSI'] < 70), 'Signal'] = "BUY"
             df.loc[(df['Close'] < df['SMA20']) & (df['RSI'] > 30), 'Signal'] = "SELL"
