@@ -8,15 +8,16 @@ from ta.volatility import BollingerBands, AverageTrueRange
 from ta.volume import OnBalanceVolumeIndicator
 
 def akcje_tab():
-    st.subheader("Zakładka Akcje - TradingRevolution Ultimate")
+    st.subheader("Zakładka Akcje")
 
-    ticker = st.text_input("Ticker akcji (np. AAPL, MSFT):", "AAPL").upper()
+    # --- Dane wejściowe ---
+    ticker = st.text_input("Ticker akcji:", "AAPL").upper()
     start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"))
     end_date = st.date_input("Data końcowa:", pd.Timestamp.today())
     interval = st.selectbox("Interwał:", ["1d", "1wk", "1mo"])
 
     if not ticker:
-        st.warning("Podaj ticker akcji")
+        st.warning("Podaj ticker")
         return
 
     try:
@@ -31,13 +32,13 @@ def akcje_tab():
 
     df = df.copy()
     df.index = pd.to_datetime(df.index)
-
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [' '.join(col).strip() for col in df.columns.values]
 
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
+    # --- Znalezienie kolumn ---
     def find_price_col(df, keyword):
         for col in df.columns:
             if keyword.lower() in col.lower():
@@ -51,7 +52,7 @@ def akcje_tab():
     volume_col = find_price_col(df, 'Volume')
 
     if not all([open_col, high_col, low_col, close_col]):
-        st.error(f"Brakuje wymaganych kolumn do wykresu świecowego")
+        st.error("Brakuje wymaganych kolumn do wykresu świecowego")
         return
 
     open_data = df[open_col]
@@ -60,7 +61,7 @@ def akcje_tab():
     close_data = df[close_col]
     volume_data = df[volume_col] if volume_col else None
 
-    # --- Wskaźniki ---
+    # --- Wskaźniki techniczne ---
     df['SMA20'] = SMAIndicator(close_data, 20).sma_indicator()
     df['SMA50'] = SMAIndicator(close_data, 50).sma_indicator()
     df['SMA200'] = SMAIndicator(close_data, 200).sma_indicator()
@@ -80,14 +81,13 @@ def akcje_tab():
     if volume_data is not None:
         df['OBV'] = OnBalanceVolumeIndicator(close_data, volume_data).on_balance_volume()
 
-    # --- Wykres świecowy ---
+    # --- Wykres świecowy z wskaźnikami ---
     fig = go.Figure()
     fig.add_trace(go.Candlestick(x=df.index,
                                  open=open_data,
                                  high=high_data,
                                  low=low_data,
                                  close=close_data,
-                                 name="Świece",
                                  increasing_line_color='lime',
                                  decreasing_line_color='red'))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA20'], line=dict(color='orange', width=2), name="SMA20"))
@@ -100,13 +100,13 @@ def akcje_tab():
     fig.update_layout(title=f"{ticker} - Wskaźniki techniczne", template="plotly_dark", xaxis_rangeslider_visible=False, height=600)
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- Panel Technical Analysis ---
+    # --- Panel wskaźników ---
     st.subheader("Technical Analysis")
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    col1.metric("Price (USD)", f"${close_data[-1]:.2f}")
-    col2.metric("RSI (14)", f"{df['RSI14'][-1]:.2f}")
-    col3.metric("MACD", f"{df['MACD'][-1]:.2f}")
-    col4.metric("ATR (14)", f"{df['ATR14'][-1]:.2f}")
-    col5.metric("ADX (14)", f"{df['ADX14'][-1]:.2f}")
+    cols = st.columns(6)
+    cols[0].metric("Price (USD)", f"${close_data[-1]:.2f}")
+    cols[1].metric("RSI14", f"{df['RSI14'][-1]:.2f}")
+    cols[2].metric("MACD", f"{df['MACD'][-1]:.2f}")
+    cols[3].metric("ATR14", f"{df['ATR14'][-1]:.2f}")
+    cols[4].metric("ADX14", f"{df['ADX14'][-1]:.2f}")
     if volume_data is not None:
-        col6.metric("OBV", f"{df['OBV'][-1]:.2f}")
+        cols[5].metric("OBV", f"{df['OBV'][-1]:.2f}")
