@@ -29,17 +29,18 @@ def akcje_tab():
     # Wymagane kolumny
     required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
 
-    # Bezpieczna konwersja kolumn na numeryczne (absolutnie odporna)
+    # Absolutnie odporna konwersja kolumn
     for col in required_cols:
         if col in df.columns:
             # Jeśli df[col] jest DataFrame (multiindex), weź pierwszą kolumnę
             if isinstance(df[col], pd.DataFrame):
                 df[col] = df[col].iloc[:, 0]
-            # Jeśli df[col] nie jest Series, wymuś konwersję
-            if not isinstance(df[col], pd.Series):
-                df[col] = pd.Series(df[col].values)
-            # Konwersja na numeryczne
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+
+            # Konwersja do numpy i spłaszczenie
+            arr = df[col].to_numpy().flatten()
+
+            # Konwersja do numerycznych wartości
+            df[col] = pd.to_numeric(arr, errors='coerce')
 
     # Dropna dla bezpieczeństwa
     df = df.dropna(subset=required_cols)
