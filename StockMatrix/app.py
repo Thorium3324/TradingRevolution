@@ -32,7 +32,6 @@ def akcje_tab():
         st.warning(f"Brak danych dla {ticker}")
         return
 
-    # --- Przygotowanie danych ---
     df = df.copy()
     df.index = pd.to_datetime(df.index)
 
@@ -44,7 +43,7 @@ def akcje_tab():
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # --- Dynamiczne dopasowanie kolumn Open/High/Low/Close ---
+    # --- Dynamiczne dopasowanie kolumn ---
     def find_price_col(df, keyword):
         for col in df.columns:
             if keyword.lower() in col.lower():
@@ -54,13 +53,14 @@ def akcje_tab():
     open_col = find_price_col(df, 'Open')
     high_col = find_price_col(df, 'High')
     low_col = find_price_col(df, 'Low')
-    close_col = find_price_col(df, 'Close')  # Close, Adj Close lub Close AAPL
+    close_col = find_price_col(df, 'Close')
+    volume_col = find_price_col(df, 'Volume')
 
     if not all([open_col, high_col, low_col, close_col]):
         st.error(f"Brakuje wymaganych kolumn do wykresu świecowego: Open:{open_col}, High:{high_col}, Low:{low_col}, Close:{close_col}")
         return
 
-    st.info(f"Używane kolumny: Open={open_col}, High={high_col}, Low={low_col}, Close={close_col}")
+    st.info(f"Używane kolumny: Open={open_col}, High={high_col}, Low={low_col}, Close={close_col}, Volume={volume_col}")
 
     open_data = df[open_col]
     high_data = df[high_col]
@@ -124,15 +124,19 @@ def akcje_tab():
     fig_macd.update_layout(title="MACD", template="plotly_dark", height=250)
 
     # --- Wolumen ---
-    fig_vol = go.Figure()
-    fig_vol.add_trace(go.Bar(x=df.index, y=df['Volume'], name="Wolumen", marker_color='blue'))
-    fig_vol.update_layout(title="Wolumen", template="plotly_dark", height=200)
+    if volume_col:
+        volume_data = df[volume_col]
+        fig_vol = go.Figure()
+        fig_vol.add_trace(go.Bar(x=df.index, y=volume_data, name="Wolumen", marker_color='blue'))
+        fig_vol.update_layout(title="Wolumen", template="plotly_dark", height=200)
+        st.plotly_chart(fig_vol, use_container_width=True)
+    else:
+        st.info("Brak kolumny wolumenu, wykres wolumenu nie będzie wyświetlany")
 
     # --- Wyświetlenie wykresów ---
     st.plotly_chart(fig_candle, use_container_width=True)
     st.plotly_chart(fig_rsi, use_container_width=True)
     st.plotly_chart(fig_macd, use_container_width=True)
-    st.plotly_chart(fig_vol, use_container_width=True)
 
     # --- Tabela sygnałów i formacji ---
     st.subheader("Ostatnie sygnały Buy/Sell i formacje świecowe")
