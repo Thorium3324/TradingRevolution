@@ -1,4 +1,4 @@
-# Poprawiona wersja tabs/krypto_tab.py – obsługa pustych danych przy metric
+# Naprawiona wersja tabs/krypto_tab.py – zabezpieczenie przed pustymi danymi w metric
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -104,12 +104,18 @@ def krypto_tab():
     st.subheader("Technical Analysis")
     cols = st.columns(6)
 
-    last_price = float(close_data.iloc[-1]) if len(close_data) > 0 else 0
-    last_rsi = float(df['RSI14'].iloc[-1]) if len(df['RSI14']) > 0 else 0
-    last_macd = float(df['MACD'].iloc[-1]) if len(df['MACD']) > 0 else 0
-    last_atr = float(df['ATR14'].iloc[-1]) if len(df['ATR14']) > 0 else 0
-    last_adx = float(df['ADX14'].iloc[-1]) if len(df['ADX14']) > 0 else 0
-    last_obv = float(df['OBV'].iloc[-1]) if (volume_data is not None and 'OBV' in df.columns and len(df['OBV']) > 0) else 0
+    def safe_metric(value):
+        try:
+            return float(value)
+        except:
+            return 0.0
+
+    last_price = safe_metric(close_data.iloc[-1]) if len(close_data) > 0 else 0
+    last_rsi = safe_metric(df['RSI14'].iloc[-1]) if len(df['RSI14']) > 0 else 0
+    last_macd = safe_metric(df['MACD'].iloc[-1]) if len(df['MACD']) > 0 else 0
+    last_atr = safe_metric(df['ATR14'].iloc[-1]) if len(df['ATR14']) > 0 else 0
+    last_adx = safe_metric(df['ADX14'].iloc[-1]) if len(df['ADX14']) > 0 else 0
+    last_obv = safe_metric(df['OBV'].iloc[-1]) if (volume_data is not None and 'OBV' in df.columns and len(df['OBV']) > 0) else 0
 
     cols[0].metric("Price (USD)", f"${last_price:.2f}", key="price_metric")
     cols[1].metric("RSI14", f"{last_rsi:.2f}", key="rsi_metric")
