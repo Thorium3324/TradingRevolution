@@ -33,9 +33,11 @@ def krypto_tab():
     df = df.copy()
     df.index = pd.to_datetime(df.index)
 
-    # --- Konwersja kolumn na float ---
-    for col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+    # --- Upewnienie się, że mamy 1D Series ---
+    def to_series(col):
+        if isinstance(col, pd.DataFrame):
+            return col.iloc[:, 0]
+        return col
 
     open_col = 'Open' if 'Open' in df.columns else None
     high_col = 'High' if 'High' in df.columns else None
@@ -47,10 +49,12 @@ def krypto_tab():
         st.warning("Brakuje wymaganych kolumn do wykresu świecowego.")
         return
 
-    open_data = df[open_col]
-    high_data = df[high_col]
-    low_data = df[low_col]
-    close_data = df[close_col]
+    open_data = to_series(df[open_col])
+    high_data = to_series(df[high_col])
+    low_data = to_series(df[low_col])
+    close_data = to_series(df[close_col])
+    if volume_col:
+        volume_data = to_series(df[volume_col])
 
     # --- Wskaźniki ---
     df['SMA20'] = SMAIndicator(close_data, 20).sma_indicator()
