@@ -17,9 +17,6 @@ st.markdown('<link rel="stylesheet" href="styles.css">', unsafe_allow_html=True)
 st.sidebar.title("TradingRevolution Ultra EVO 5.3")
 tabs = st.sidebar.radio("Sekcje:", ["Akcje","Krypto","Portfolio","Backtesting","AI Predykcje","Heatmapa","Alerty","Live Trading"])
 
-# ... Wszystkie zakładki jak w poprzedniej wersji z rozbudowanymi AI i heatmapą
-
-
 # --- AKCJE ---
 if tabs=="Akcje":
     ticker = st.text_input("Ticker:", "AAPL").upper()
@@ -64,14 +61,15 @@ elif tabs=="Backtesting":
 # --- AI PREDYKCJE ---
 elif tabs=="AI Predykcje":
     ticker = st.text_input("Ticker do predykcji:", "AAPL", key="ai")
-    df = get_stock_data(ticker, date(2023,1,1), date.today())
-    next_price, trend = predict_trend(df)
-    st.metric(f"Predykcja następnej ceny {ticker}", f"${next_price:.2f}")
-    st.info(f"Trend: {trend}")
+    if ticker:
+        df = get_stock_data(ticker, date(2023,1,1), date.today())
+        next_price, trend = predict_trend(df)
+        st.metric(f"Predykcja następnej ceny {ticker}", f"${next_price:.2f}")
+        st.info(f"Trend: {trend}")
 
 # --- HEATMAPA ---
 elif tabs=="Heatmapa":
-    st.info("Heatmapa predykcyjna dostępna w kolejnej wersji AI/ML Ultra EVO")
+    st.info("Heatmapa predykcyjna AI w przygotowaniu")
 
 # --- ALERTY ---
 elif tabs=="Alerty":
@@ -83,4 +81,3 @@ elif tabs=="Alerty":
 # --- LIVE TRADING ---
 elif tabs=="Live Trading":
     st.warning("Live trading dostępny po konfiguracji API w broker_integration.py")
-
