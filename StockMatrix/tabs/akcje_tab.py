@@ -27,31 +27,39 @@ def akcje_tab():
 
     df = df.reset_index()
 
-    # Wymagane kolumny
-    required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
-    existing_cols = []
+    # Mapowanie kolumn do standardowych nazw
+    col_map = {}
+    for col in df.columns:
+        lname = col.lower()
+        if 'open' in lname:
+            col_map['Open'] = col
+        elif 'high' in lname:
+            col_map['High'] = col
+        elif 'low' in lname:
+            col_map['Low'] = col
+        elif 'close' in lname:
+            col_map['Close'] = col
+        elif 'volume' in lname:
+            col_map['Volume'] = col
 
-    for col in required_cols:
-        if col in df.columns:
-            # Jeśli kolumna jest DataFrame (multiindex), bierzemy pierwszą kolumnę
-            if isinstance(df[col], pd.DataFrame):
-                df[col] = df[col].iloc[:, 0]
-            # Spłaszczamy do 1-wymiarowej serii i konwertujemy do numeric
-            df[col] = pd.to_numeric(pd.Series(df[col].values.flatten()), errors='coerce')
-            existing_cols.append(col)
+    required = ['Open', 'High', 'Low', 'Close', 'Volume']
+    existing_cols = [k for k in required if k in col_map]
 
     if not existing_cols:
-        st.error("❌ Brak wymaganych kolumn w danych. Spróbuj inny ticker.")
+        st.error("❌ Brak wymaganych kolumn w danych.")
         return
 
-    # Dropna po istniejących kolumnach
+    # Konwersja kolumn do numeric
+    for col in existing_cols:
+        df[col] = pd.to_numeric(pd.Series(df[col_map[col]].values.flatten()), errors='coerce')
+
+    # Dropna tylko po istniejących kolumnach
     df = df.dropna(subset=existing_cols)
     if df.empty:
         st.error("❌ Dane po konwersji są puste.")
         return
 
-    # Kolumna Close do wyświetlania
-    close_col = 'Close' if 'Close' in df.columns else existing_cols[-1]
+    close_col = 'Close'
 
     # Metryki
     col1, col2, col3 = st.columns(3)
@@ -70,45 +78,13 @@ def akcje_tab():
     fig = go.Figure()
     fig.add_trace(go.Candlestick(
         x=df['Date'],
-        open=df['Open'] if 'Open' in df.columns else df[close_col],
-        high=df['High'] if 'High' in df.columns else df[close_col],
-        low=df['Low'] if 'Low' in df.columns else df[close_col],
-        close=df[close_col],
+        open=df['Open'],
+        high=df['High'],
+        low=df['Low'],
+        close=df['Close'],
         name=ticker
     ))
     if 'SMA20' in df.columns:
         fig.add_trace(go.Scatter(x=df['Date'], y=df['SMA20'], mode='lines', name='SMA20', line=dict(color='orange')))
     if 'EMA20' in df.columns:
-        fig.add_trace(go.Scatter(x=df['Date'], y=df['EMA20'], mode='lines', name='EMA20', line=dict(color='green')))
-    fig.update_layout(xaxis_rangeslider_visible=False, template="plotly_dark", height=600)
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Wolumen
-    if 'Volume' in df.columns:
-        st.markdown("### Wolumen")
-        fig_vol = go.Figure()
-        fig_vol.add_trace(go.Bar(x=df['Date'], y=df['Volume'], name="Wolumen", marker_color='blue'))
-        fig_vol.update_layout(template="plotly_dark", height=250)
-        st.plotly_chart(fig_vol, use_container_width=True)
-
-    # Analiza techniczna
-    st.markdown("### Analiza techniczna")
-    signal = "Neutral"
-    strength = 5
-    rsi = df['RSI14'].iloc[-1] if 'RSI14' in df.columns and not df['RSI14'].isna().all() else None
-
-    if rsi is not None:
-        if rsi < 30:
-            signal = "Kupuj"
-            strength = 8
-        elif rsi > 70:
-            signal = "Sprzedaj"
-            strength = 8
-
-    st.info(f"**Sygnał:** {signal} | **Siła:** {strength}/10 | **RSI:** {rsi:.2f}" if rsi is not None else "Brak danych RSI")
-
-    # Volatility 30-dniowa
-    if 'Close' in df.columns:
-        df['returns'] = df['Close'].pct_change()
-        volatility = df['returns'].rolling(30).std().iloc[-1]*100 if not df['returns'].isna().all() else None
-        st.write(f"📊 **Volatility (30 dni):** {volatility:.2f}%" if volatility is not None else "Brak danych dla zmienności")
+        fig.add_trace(go.Scatter(x=df['Date'], y=df['EMA20'], mode='lines', name='EMA20', line=dict(color='g_
