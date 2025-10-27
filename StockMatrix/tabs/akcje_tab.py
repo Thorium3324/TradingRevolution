@@ -104,7 +104,32 @@ def akcje_tab():
     fig_candle.update_layout(title=f"{ticker} - Świece i wskaźniki", template="plotly_dark", xaxis_rangeslider_visible=False, height=600)
     st.plotly_chart(fig_candle, use_container_width=True)
 
-   # --- Wolumen jako słupki ---
+  # --- Dynamiczne dopasowanie kolumn ---
+def find_price_col(df, keyword):
+    for col in df.columns:
+        if keyword.lower() in col.lower():
+            return col
+    return None
+
+open_col = find_price_col(df, 'Open')
+high_col = find_price_col(df, 'High')
+low_col = find_price_col(df, 'Low')
+close_col = find_price_col(df, 'Close')
+volume_col = find_price_col(df, 'Volume')
+
+if not all([open_col, high_col, low_col, close_col]):
+    st.error("Brakuje wymaganych kolumn do wykresu świecowego")
+    return
+
+open_data = df[open_col]
+high_data = df[high_col]
+low_data = df[low_col]
+close_data = df[close_col]
+
+# Wolumen (przypisanie do zmiennej)
+volume_data = df[volume_col] if volume_col else None
+
+# --- Wolumen jako słupki ---
 if volume_data is not None:
     fig_vol = go.Figure()
     fig_vol.add_trace(go.Bar(
@@ -116,7 +141,7 @@ if volume_data is not None:
     fig_vol.update_layout(
         title="Wolumen",
         template="plotly_dark",
-        height=350,  # większa wysokość
+        height=350,
         margin=dict(t=40, b=20),
         xaxis=dict(rangeslider=dict(visible=False)),
     )
