@@ -9,17 +9,15 @@ from ta.volatility import BollingerBands, AverageTrueRange
 def krypto_tab():
     st.subheader("Zakładka Krypto - TradingRevolution Ultimate")
 
-    # --- Dane wejściowe ---
     ticker = st.text_input("Krypto ticker (np. BTC-USD, ETH-USD):", "BTC-USD").upper()
-    start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"), key="start_date_krypto")
-    end_date = st.date_input("Data końcowa:", pd.Timestamp.today(), key="end_date_krypto")
-    interval = st.selectbox("Interwał:", ["1d", "1h", "4h", "1wk"], key="interval_krypto")
+    start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"), key="start_date")
+    end_date = st.date_input("Data końcowa:", pd.Timestamp.today(), key="end_date")
+    interval = st.selectbox("Interwał:", ["1d", "1h", "4h", "1wk"], key="interval")
 
     if not ticker:
         st.warning("Podaj ticker kryptowaluty")
         return
 
-    # --- Pobranie danych ---
     try:
         df = yf.download(ticker, start=start_date, end=end_date, interval=interval)
     except Exception as e:
@@ -33,28 +31,21 @@ def krypto_tab():
     df = df.copy()
     df.index = pd.to_datetime(df.index)
 
-    # --- Upewnienie się, że mamy 1D Series ---
+    # --- Upewnienie się, że wszystkie kolumny to Series 1D ---
     def to_series(col):
         if isinstance(col, pd.DataFrame):
             return col.iloc[:, 0]
-        return col
+        return pd.Series(col)
 
-    open_col = 'Open' if 'Open' in df.columns else None
-    high_col = 'High' if 'High' in df.columns else None
-    low_col = 'Low' if 'Low' in df.columns else None
-    close_col = 'Close' if 'Close' in df.columns else None
-    volume_col = 'Volume' if 'Volume' in df.columns else None
+    open_data = to_series(df['Open']) if 'Open' in df.columns else None
+    high_data = to_series(df['High']) if 'High' in df.columns else None
+    low_data = to_series(df['Low']) if 'Low' in df.columns else None
+    close_data = to_series(df['Close']) if 'Close' in df.columns else None
+    volume_data = to_series(df['Volume']) if 'Volume' in df.columns else None
 
-    if not all([open_col, high_col, low_col, close_col]):
-        st.warning("Brakuje wymaganych kolumn do wykresu świecowego.")
+    if not all([open_data is not None, high_data is not None, low_data is not None, close_data is not None]):
+        st.warning("Brakuje wymaganych kolumn do wykresu świecowego")
         return
-
-    open_data = to_series(df[open_col])
-    high_data = to_series(df[high_col])
-    low_data = to_series(df[low_col])
-    close_data = to_series(df[close_col])
-    if volume_col:
-        volume_data = to_series(df[volume_col])
 
     # --- Wskaźniki ---
     df['SMA20'] = SMAIndicator(close_data, 20).sma_indicator()
@@ -75,27 +66,22 @@ def krypto_tab():
     # --- Wykres świecowy ---
     fig = go.Figure()
     fig.add_trace(go.Candlestick(
-        x=df.index,
-        open=open_data,
-        high=high_data,
-        low=low_data,
-        close=close_data,
-        increasing_line_color='lime',
-        decreasing_line_color='red',
-        name="Świece"
+        x=df.index, open=open_data, high=high_data, low=low_data, close=close_data,
+        increasing_line_color='lime', decreasing_line_color='red', name="Świece"
     ))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA20'], line=dict(color='orange', width=2), name="SMA20"))
     fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], line=dict(color='green', width=2), name="EMA20"))
     fig.add_trace(go.Scatter(x=df.index, y=df['BB_upper'], line=dict(color='red', width=1, dash='dot'), name="BB_upper"))
     fig.add_trace(go.Scatter(x=df.index, y=df['BB_lower'], line=dict(color='red', width=1, dash='dot'), name="BB_lower"))
-    fig.update_layout(title=f"{ticker} - Świece i wskaźniki", template="plotly_dark", xaxis_rangeslider_visible=False, height=600)
+    fig.update_layout(title=f"{ticker} - Świece i wskaźniki", template="plotly_dark",
+                      xaxis_rangeslider_visible=False, height=600)
     st.plotly_chart(fig, use_container_width=True)
 
     # --- Panel wskaźników ---
     st.subheader("Technical Analysis")
-    last_price = close_data.iloc[-1] if not close_data.empty and pd.notna(close_data.iloc[-1]) else 0
-    last_rsi = df['RSI14'].iloc[-1] if 'RSI14' in df.columns and pd.notna(df['RSI14'].iloc[-1]) else 0
-    last_macd = df['MACD'].iloc[-1] if 'MACD' in df.columns and pd.notna(df['MACD'].iloc[-1]) else 0
+    last_price = close_data.iloc[-1] if not close_data.empty else 0
+    last_rsi = df['RSI14'].iloc[-1] if 'RSI14' in df.columns else 0
+    last_macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else 0
     last_volatility = close_data.pct_change().dropna()[-30:].std() * 100 if len(close_data) >= 30 else 0
 
     cols = st.columns(4)
