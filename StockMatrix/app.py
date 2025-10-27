@@ -60,8 +60,6 @@ def akcje_tab():
         st.error(f"Brakuje wymaganych kolumn do wykresu świecowego: Open:{open_col}, High:{high_col}, Low:{low_col}, Close:{close_col}")
         return
 
-    st.info(f"Używane kolumny: Open={open_col}, High={high_col}, Low={low_col}, Close={close_col}, Volume={volume_col}")
-
     open_data = df[open_col]
     high_data = df[high_col]
     low_data = df[low_col]
@@ -130,8 +128,6 @@ def akcje_tab():
         fig_vol.add_trace(go.Bar(x=df.index, y=volume_data, name="Wolumen", marker_color='blue'))
         fig_vol.update_layout(title="Wolumen", template="plotly_dark", height=200)
         st.plotly_chart(fig_vol, use_container_width=True)
-    else:
-        st.info("Brak kolumny wolumenu, wykres wolumenu nie będzie wyświetlany")
 
     # --- Wyświetlenie wykresów ---
     st.plotly_chart(fig_candle, use_container_width=True)
