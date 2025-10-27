@@ -12,6 +12,3 @@ matplotlib
 seaborn
 requests
 plotly-express
-tensorflow==2.13.0
-h5py
-
