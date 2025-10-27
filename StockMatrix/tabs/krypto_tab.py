@@ -1,5 +1,3 @@
-# tabs/krypto_tab.py - poprawiona wersja funkcji krypto_tab(), aby uniknąć KeyError przy braku kolumny 'Close'
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -13,9 +11,9 @@ def krypto_tab():
 
     # --- Dane wejściowe ---
     ticker = st.text_input("Krypto ticker (np. BTC-USD, ETH-USD):", "BTC-USD").upper()
-    start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"), key="start_date")
-    end_date = st.date_input("Data końcowa:", pd.Timestamp.today(), key="end_date")
-    interval = st.selectbox("Interwał:", ["1d", "1h", "4h", "1wk"], key="interval")
+    start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"), key="start_date_krypto")
+    end_date = st.date_input("Data końcowa:", pd.Timestamp.today(), key="end_date_krypto")
+    interval = st.selectbox("Interwał:", ["1d", "1h", "4h", "1wk"], key="interval_krypto")
 
     if not ticker:
         st.warning("Podaj ticker kryptowaluty")
@@ -35,29 +33,19 @@ def krypto_tab():
     df = df.copy()
     df.index = pd.to_datetime(df.index)
 
-    # Spłaszczenie MultiIndex jeśli istnieje
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [' '.join(col).strip() for col in df.columns.values]
+    # --- Konwersja kolumn na float ---
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # --- Dynamiczne dopasowanie kolumn ---
-    def find_price_col(df, keyword):
-        for col in df.columns:
-            if keyword.lower() in col.lower():
-                return col
-        return None
+    open_col = 'Open' if 'Open' in df.columns else None
+    high_col = 'High' if 'High' in df.columns else None
+    low_col = 'Low' if 'Low' in df.columns else None
+    close_col = 'Close' if 'Close' in df.columns else None
+    volume_col = 'Volume' if 'Volume' in df.columns else None
 
-    open_col = find_price_col(df, 'Open')
-    high_col = find_price_col(df, 'High')
-    low_col = find_price_col(df, 'Low')
-    close_col = find_price_col(df, 'Close')
-    volume_col = find_price_col(df, 'Volume')
-
-    required_cols = [open_col, high_col, low_col, close_col]
-    if not all(required_cols):
-        st.error("Brakuje wymaganych kolumn do wykresu świecowego")
+    if not all([open_col, high_col, low_col, close_col]):
+        st.warning("Brakuje wymaganych kolumn do wykresu świecowego.")
         return
-
-    df = df.dropna(subset=[col for col in required_cols if col is not None])
 
     open_data = df[open_col]
     high_data = df[high_col]
@@ -66,7 +54,10 @@ def krypto_tab():
 
     # --- Wskaźniki ---
     df['SMA20'] = SMAIndicator(close_data, 20).sma_indicator()
+    df['SMA50'] = SMAIndicator(close_data, 50).sma_indicator()
+    df['SMA200'] = SMAIndicator(close_data, 200).sma_indicator()
     df['EMA20'] = EMAIndicator(close_data, 20).ema_indicator()
+    df['EMA50'] = EMAIndicator(close_data, 50).ema_indicator()
     df['RSI14'] = RSIIndicator(close_data, 14).rsi()
     macd = MACD(close_data)
     df['MACD'] = macd.macd()
@@ -78,8 +69,8 @@ def krypto_tab():
     df['Stochastic14'] = StochasticOscillator(high_data, low_data, close_data, 14).stoch()
 
     # --- Wykres świecowy ---
-    fig_candle = go.Figure()
-    fig_candle.add_trace(go.Candlestick(
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(
         x=df.index,
         open=open_data,
         high=high_data,
@@ -89,21 +80,25 @@ def krypto_tab():
         decreasing_line_color='red',
         name="Świece"
     ))
-    fig_candle.add_trace(go.Scatter(x=df.index, y=df['SMA20'], line=dict(color='orange', width=2), name="SMA20"))
-    fig_candle.add_trace(go.Scatter(x=df.index, y=df['EMA20'], line=dict(color='green', width=2), name="EMA20"))
-    fig_candle.update_layout(title=f"{ticker} - Świece i wskaźniki", template="plotly_dark", xaxis_rangeslider_visible=False, height=600)
-
-    st.plotly_chart(fig_candle, use_container_width=True)
+    fig.add_trace(go.Scatter(x=df.index, y=df['SMA20'], line=dict(color='orange', width=2), name="SMA20"))
+    fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], line=dict(color='green', width=2), name="EMA20"))
+    fig.add_trace(go.Scatter(x=df.index, y=df['BB_upper'], line=dict(color='red', width=1, dash='dot'), name="BB_upper"))
+    fig.add_trace(go.Scatter(x=df.index, y=df['BB_lower'], line=dict(color='red', width=1, dash='dot'), name="BB_lower"))
+    fig.update_layout(title=f"{ticker} - Świece i wskaźniki", template="plotly_dark", xaxis_rangeslider_visible=False, height=600)
+    st.plotly_chart(fig, use_container_width=True)
 
     # --- Panel wskaźników ---
     st.subheader("Technical Analysis")
-    last_price = close_data.iloc[-1]
-    last_rsi = df['RSI14'].iloc[-1]
-    last_macd = df['MACD'].iloc[-1]
-    last_volatility = close_data.pct_change().dropna()[-30:].std() * 100
+    last_price = close_data.iloc[-1] if not close_data.empty and pd.notna(close_data.iloc[-1]) else 0
+    last_rsi = df['RSI14'].iloc[-1] if 'RSI14' in df.columns and pd.notna(df['RSI14'].iloc[-1]) else 0
+    last_macd = df['MACD'].iloc[-1] if 'MACD' in df.columns and pd.notna(df['MACD'].iloc[-1]) else 0
+    last_volatility = close_data.pct_change().dropna()[-30:].std() * 100 if len(close_data) >= 30 else 0
 
     cols = st.columns(4)
     cols[0].metric("Price (USD)", f"${last_price:.2f}", key="price_metric")
     cols[1].metric("RSI (14)", f"{last_rsi:.2f}", key="rsi_metric")
     cols[2].metric("MACD", f"{last_macd:.2f}", key="macd_metric")
     cols[3].metric("Volatility 30d", f"{last_volatility:.2f}%", key="vol_metric")
+
+    if last_volatility > 10:
+        st.warning("High volatility detected – expect larger price swings ⚠️")
