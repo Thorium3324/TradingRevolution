@@ -12,4 +12,5 @@ matplotlib
 seaborn
 requests
 plotly-express
-tensorflow
+tensorflow==2.13.0
+
