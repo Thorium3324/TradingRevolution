@@ -39,15 +39,27 @@ def akcje_tab():
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [' '.join(col).strip() for col in df.columns.values]
 
-    for col in ['Open','High','Low','Close','Adj Close','Volume']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    required_cols = [c for c in ['Open','High','Low','Close'] if c in df.columns]
-    df = df.dropna(subset=required_cols)
+    # --- Dynamiczne określenie kolumny Close ---
+    if 'Close' in df.columns:
+        close_col = 'Close'
+    elif 'Adj Close' in df.columns:
+        close_col = 'Adj Close'
+    else:
+        st.error("Brak kolumny Close lub Adj Close w danych")
+        return
+
+    required_cols = ['Open', 'High', 'Low', close_col]
+    existing_cols = [c for c in required_cols if c in df.columns]
+    if len(existing_cols) < 4:
+        st.error(f"Brakuje wymaganych kolumn do wykresu świecowego: {required_cols}")
+        return
+
+    close = df[close_col]
 
     # --- Wskaźniki ---
-    close = df['Close']
     df['SMA'] = SMAIndicator(close, sma_period).sma_indicator()
     df['EMA'] = EMAIndicator(close, ema_period).ema_indicator()
     df['RSI'] = RSIIndicator(close, rsi_period).rsi()
@@ -60,17 +72,17 @@ def akcje_tab():
 
     # --- Sygnały Buy/Sell ---
     df['Signal'] = ""
-    df.loc[(df['Close'] > df['SMA']) & (df['RSI'] < 70), 'Signal'] = "BUY"
-    df.loc[(df['Close'] < df['SMA']) & (df['RSI'] > 30), 'Signal'] = "SELL"
+    df.loc[(close > df['SMA']) & (df['RSI'] < 70), 'Signal'] = "BUY"
+    df.loc[(close < df['SMA']) & (df['RSI'] > 30), 'Signal'] = "SELL"
 
     # --- Formacje świecowe ---
-    df['Hammer'] = ((df['High'] - df['Low']) > 3*(df['Open'] - df['Close'])) & \
-                   (((df['Close'] - df['Low']) / (0.001 + df['High'] - df['Low'])) > 0.6)
-    df['Doji'] = abs(df['Close'] - df['Open']) / (df['High'] - df['Low'] + 0.001) < 0.1
-    df['Engulfing'] = ((df['Close'] > df['Open']) & (df['Close'].shift(1) < df['Open'].shift(1)) & \
-                       (df['Close'] > df['Open'].shift(1))) | \
-                      ((df['Close'] < df['Open']) & (df['Close'].shift(1) > df['Open'].shift(1)) & \
-                       (df['Close'] < df['Open'].shift(1)))
+    df['Hammer'] = ((df['High'] - df['Low']) > 3*(df['Open'] - close)) & \
+                   (((close - df['Low']) / (0.001 + df['High'] - df['Low'])) > 0.6)
+    df['Doji'] = abs(close - df['Open']) / (df['High'] - df['Low'] + 0.001) < 0.1
+    df['Engulfing'] = ((close > df['Open']) & (close.shift(1) < df['Open'].shift(1)) & \
+                       (close > df['Open'].shift(1))) | \
+                      ((close < df['Open']) & (close.shift(1) > df['Open'].shift(1)) & \
+                       (close < df['Open'].shift(1)))
 
     # --- Wykres świecowy ---
     fig_candle = go.Figure()
@@ -79,7 +91,7 @@ def akcje_tab():
         open=df['Open'],
         high=df['High'],
         low=df['Low'],
-        close=df['Close'],
+        close=close,
         increasing_line_color='lime',
         decreasing_line_color='red',
         name="Świece"
@@ -126,17 +138,5 @@ tab = st.sidebar.radio("Wybierz zakładkę:", ["Akcje","Krypto","Portfolio","Bac
 # --- Wywołanie zakładek ---
 if tab == "Akcje":
     akcje_tab()
-elif tab == "Krypto":
-    st.info("Zakładka Krypto w budowie")
-elif tab == "Portfolio":
-    st.info("Zakładka Portfolio w budowie")
-elif tab == "Backtesting":
-    st.info("Zakładka Backtesting w budowie")
-elif tab == "AI Predykcje":
-    st.info("Zakładka AI Predykcje w budowie")
-elif tab == "Heatmapa":
-    st.info("Zakładka Heatmapa w budowie")
-elif tab == "Alerty":
-    st.info("Zakładka Alerty w budowie")
-elif tab == "Live Trading":
-    st.info("Zakładka Live Trading w budowie")
+else:
+    st.info(f"Zakładka {tab} w budowie")
