@@ -1,4 +1,4 @@
-# Poprawiona wersja tabs/krypto_tab.py, która działa bez błędu ImportError
+# Poprawiona wersja tabs/krypto_tab.py z unikalnymi ID dla widgetów, aby uniknąć StreamlitDuplicateElementId
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -11,10 +11,10 @@ from ta.volume import OnBalanceVolumeIndicator
 def krypto_tab():
     st.subheader("Zakładka Krypto")
 
-    ticker = st.text_input("Krypto ticker (np. BTC-USD):", "BTC-USD").upper()
-    start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"))
-    end_date = st.date_input("Data końcowa:", pd.Timestamp.today())
-    interval = st.selectbox("Interwał:", ["1d", "1h", "4h", "1wk"])
+    ticker = st.text_input("Krypto ticker (np. BTC-USD):", "BTC-USD", key="ticker_input")
+    start_date = st.date_input("Data początkowa:", pd.to_datetime("2023-01-01"), key="start_date_input")
+    end_date = st.date_input("Data końcowa:", pd.Timestamp.today(), key="end_date_input")
+    interval = st.selectbox("Interwał:", ["1d", "1h", "4h", "1wk"], key="interval_select")
 
     if not ticker:
         st.warning("Podaj ticker kryptowaluty")
@@ -39,7 +39,6 @@ def krypto_tab():
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # --- Znalezienie kolumn ---
     def find_price_col(df, keyword):
         for col in df.columns:
             if keyword.lower() in col.lower():
@@ -104,10 +103,10 @@ def krypto_tab():
     # --- Panel wskaźników ---
     st.subheader("Technical Analysis")
     cols = st.columns(6)
-    cols[0].metric("Price (USD)", f"${close_data[-1]:.2f}")
-    cols[1].metric("RSI14", f"{df['RSI14'][-1]:.2f}")
-    cols[2].metric("MACD", f"{df['MACD'][-1]:.2f}")
-    cols[3].metric("ATR14", f"{df['ATR14'][-1]:.2f}")
-    cols[4].metric("ADX14", f"{df['ADX14'][-1]:.2f}")
+    cols[0].metric("Price (USD)", f"${close_data[-1]:.2f}", key="price_metric")
+    cols[1].metric("RSI14", f"{df['RSI14'][-1]:.2f}", key="rsi_metric")
+    cols[2].metric("MACD", f"{df['MACD'][-1]:.2f}", key="macd_metric")
+    cols[3].metric("ATR14", f"{df['ATR14'][-1]:.2f}", key="atr_metric")
+    cols[4].metric("ADX14", f"{df['ADX14'][-1]:.2f}", key="adx_metric")
     if volume_data is not None:
-        cols[5].metric("OBV", f"{df['OBV'][-1]:.2f}")
+        cols[5].metric("OBV", f"{df['OBV'][-1]:.2f}", key="obv_metric")
