@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import importlib.util
 
-# --- Funkcja do dynamicznego importu zakładek ---
+# Funkcja do dynamicznego importu zakładek
 def import_tab(tab_name):
     tab_path = os.path.join(os.path.dirname(__file__), "tabs", f"{tab_name}.py")
     if not os.path.exists(tab_path):
@@ -13,7 +13,7 @@ def import_tab(tab_name):
     spec.loader.exec_module(module)
     return module
 
-# --- Import zakładek ---
+# Import wszystkich zakładek
 akcje_tab_module = import_tab("akcje_tab")
 krypto_tab_module = import_tab("krypto_tab")
 portfolio_tab_module = import_tab("portfolio_tab")
@@ -22,24 +22,20 @@ alerty_tab_module = import_tab("alerty_tab")
 analityka_tab_module = import_tab("analityka_tab")
 ai_tab_module = import_tab("ai_tab")
 
-# --- Ustawienia strony ---
-st.set_page_config(
-    page_title="TradingRevolution - StockMatrix",
-    layout="wide",
-    page_icon="📊"
-)
-
-# Pasek boczny
+# Konfiguracja strony
+st.set_page_config(page_title="TradingRevolution", layout="wide")
 st.sidebar.title("🚀 TradingRevolution")
-st.sidebar.image("assets/logo.png", use_container_width=True)
 
-# Menu
+# ❌ Usunięto obrazki z assets
+# st.sidebar.image("assets/logo.png", use_container_width=True)
+
+# Menu zakładek
 menu = st.sidebar.radio(
     "Wybierz zakładkę:",
-    ["Akcje", "Krypto", "Portfolio", "Strategie", "Alerty", "Analityka", "AI"]
+    ["Akcje","Krypto","Portfolio","Strategie","Alerty","Analityka","AI"]
 )
 
-# --- Routing zakładek ---
+# Wywołanie odpowiedniej zakładki
 if menu == "Akcje" and akcje_tab_module:
     akcje_tab_module.akcje_tab()
 elif menu == "Krypto" and krypto_tab_module:
@@ -55,4 +51,4 @@ elif menu == "Analityka" and analityka_tab_module:
 elif menu == "AI" and ai_tab_module:
     ai_tab_module.ai_tab()
 else:
-    st.info("🚧 Ta zakładka jest w budowie lub wystąpił problem z importem.")
+    st.info("🚧 Ta zakładka jest w budowie lub brak pliku.")
