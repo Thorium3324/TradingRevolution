@@ -12,13 +12,10 @@ def sma_crossover_strategy(df, short_window=20, long_window=50):
 
 def multi_strategy_backtest(df, strategies):
     fig = go.Figure()
-    for strat_name, strat_func in strategies.items():
-        df_temp = strat_func(df.copy())
-        fig.add_trace(go.Scatter3d(
-            x=df_temp.index, y=[strat_name]*len(df_temp), z=df_temp['Equity'],
-            mode='lines', name=strat_name
-        ))
-    fig.update_layout(title="3D Equity Curve - Multi Strategy", scene=dict(
-        xaxis_title="Data", yaxis_title="Strategia", zaxis_title="Kapitał"
-    ))
+    for name, func in strategies.items():
+        df_temp = func(df.copy())
+        fig.add_trace(go.Scatter3d(x=df_temp.index, y=[name]*len(df_temp), z=df_temp['Equity'],
+                                   mode='lines', name=name))
+    fig.update_layout(title="3D Equity Curve Multi Strategy",
+                      scene=dict(xaxis_title="Data", yaxis_title="Strategia", zaxis_title="Kapitał"))
     return fig
