@@ -12,7 +12,7 @@ from ta.volume import OnBalanceVolumeIndicator
 def financial_analysis(df, ticker):
     results = {}
     close_col = 'Close'
-    if close_col not in df.columns:
+    if close_col not in df.columns or df[close_col].empty:
         return results, df
 
     # SMA
@@ -126,7 +126,7 @@ def akcje_tab():
     fin_results, df = financial_analysis(df, ticker)
 
     # Wyświetlanie metryk
-    st.subheader(f"Technical Analysis - {ticker}")
+    st.subheader(f"Technical & Fundamental Analysis - {ticker}")
     col1, col2, col3 = st.columns(3)
     col1.metric("Cena (USD)", f"${df['Close'].iloc[-1]:.2f}" if not df['Close'].isna().all() else "Brak")
     col1.metric("SMA20", f"{df['SMA20'].iloc[-1]:.2f}" if 'SMA20' in df else "Brak")
@@ -140,6 +140,15 @@ def akcje_tab():
     col3.metric("Volatility 30d", f"{fin_results.get('Volatility_30d',0)*100:.2f}%")
     col3.metric("OBV", f"{fin_results.get('OBV',0):.0f}")
 
+    st.subheader("📊 Fundamental Metrics")
+    colf1, colf2, colf3 = st.columns(3)
+    colf1.metric("P/E", f"{fin_results.get('PE','-')}")
+    colf1.metric("EPS", f"{fin_results.get('EPS','-')}")
+    colf2.metric("Market Cap", f"{fin_results.get('MarketCap','-')}")
+    colf2.metric("Dividend Yield", f"{fin_results.get('DividendYield','-')}")
+    colf3.metric("Beta", f"{fin_results.get('Beta','-')}")
+    colf3.metric("Signal", f"{fin_results.get('Signal','Neutral')} ({fin_results.get('Signal_Strength',0)}/10)")
+
     # Wykres świecowy
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
                                          open=df['Open'],
@@ -147,4 +156,8 @@ def akcje_tab():
                                          low=df['Low'],
                                          close=df['Close'],
                                          name=ticker)])
-    fig.update_layout(title=f
+    fig.update_layout(title=f"Wykres świecowy - {ticker}",
+                      xaxis_title="Data",
+                      yaxis_title="Cena (USD)",
+                      xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig, use_container_width=True)
