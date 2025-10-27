@@ -1,14 +1,11 @@
 streamlit
+yfinance
 pandas
 numpy
 plotly
-yfinance
 ta
-backtrader
-ccxt
+tensorflow
 scikit-learn
-xgboost
 matplotlib
 seaborn
 requests
-plotly-express
