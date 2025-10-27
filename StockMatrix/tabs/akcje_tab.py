@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
-from ta.trend import SMAIndicator, CCIIndicator, MACD
+from ta.trend import SMAIndicator, EMAIndicator, MACD, CCIIndicator
 from ta.momentum import RSIIndicator, StochasticOscillator
 from ta.volatility import BollingerBands, AverageTrueRange
 from ta.volume import OnBalanceVolumeIndicator
@@ -18,6 +18,11 @@ def financial_analysis(df, ticker):
     # SMA
     df['SMA20'] = SMAIndicator(df[close_col], 20).sma_indicator()
     df['SMA50'] = SMAIndicator(df[close_col], 50).sma_indicator()
+    df['SMA200'] = SMAIndicator(df[close_col], 200).sma_indicator()
+
+    # EMA
+    df['EMA20'] = EMAIndicator(df[close_col], 20).ema_indicator()
+    df['EMA50'] = EMAIndicator(df[close_col], 50).ema_indicator()
 
     # Bollinger Bands
     bb = BollingerBands(df[close_col], window=20, window_dev=2)
@@ -77,11 +82,27 @@ def financial_analysis(df, ticker):
     except:
         pass
 
+    # Signal
+    signal = "Neutral"
+    strength = 0
+    if df['SMA20'].iloc[-1] > df['SMA50'].iloc[-1]:
+        signal = "Buy"
+        strength += 3
+    if df['RSI'].iloc[-1] < 30:
+        signal = "Buy"
+        strength += 2
+    if df['RSI'].iloc[-1] > 70:
+        signal = "Sell"
+        strength += 2
+    if df['MACD'].iloc[-1] > df['MACD_signal'].iloc[-1]:
+        strength += 1
+    results['Signal'] = signal
+    results['Signal_Strength'] = strength
+
     return results, df
 
 def akcje_tab():
     st.header("📈 Akcje")
-
     ticker = st.text_input("Wpisz ticker akcji (np. AAPL, TSLA)", value="AAPL").upper()
     if not ticker:
         st.warning("Wpisz ticker akcji aby rozpocząć")
@@ -94,24 +115,19 @@ def akcje_tab():
         return
 
     if df.empty:
-        st.warning("Nie znaleziono danych dla wybranego symbolu.")
+        st.warning("Brak danych dla wybranego symbolu.")
         return
 
     df.reset_index(inplace=True)
-
-    # Upewnij się, że kolumny istnieją
-    required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
-    for col in required_cols:
+    for col in ['Open','High','Low','Close','Volume']:
         if col not in df.columns:
             df[col] = np.nan
 
-    # Techniczne i finansowe analizy
     fin_results, df = financial_analysis(df, ticker)
 
     # Wyświetlanie metryk
     st.subheader(f"Technical Analysis - {ticker}")
     col1, col2, col3 = st.columns(3)
-
     col1.metric("Cena (USD)", f"${df['Close'].iloc[-1]:.2f}" if not df['Close'].isna().all() else "Brak")
     col1.metric("SMA20", f"{df['SMA20'].iloc[-1]:.2f}" if 'SMA20' in df else "Brak")
     col1.metric("SMA50", f"{df['SMA50'].iloc[-1]:.2f}" if 'SMA50' in df else "Brak")
@@ -131,14 +147,4 @@ def akcje_tab():
                                          low=df['Low'],
                                          close=df['Close'],
                                          name=ticker)])
-    fig.update_layout(title=f"Wykres świecowy - {ticker}", xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Analiza finansowa
-    if fin_results:
-        st.subheader("Analiza finansowa")
-        st.write(f"P/E: {fin_results.get('PE','Brak')}")
-        st.write(f"EPS: {fin_results.get('EPS','Brak')}")
-        st.write(f"Market Cap: {fin_results.get('MarketCap','Brak')}")
-        st.write(f"Dividend Yield: {fin_results.get('DividendYield','Brak')}")
-        st.write(f"Beta: {fin_results.get('Beta','Brak')}")
+    fig.update_layout(title=f
