@@ -11,6 +11,9 @@ def akcje_tab():
     st.title("📈 Analiza Akcji")
 
     ticker = st.text_input("Podaj ticker akcji:", "AAPL").upper()
+    if not ticker:
+        st.warning("Podaj ticker akcji, aby rozpocząć analizę.")
+        return
 
     try:
         df = yf.download(ticker, period="6mo", interval="1d", progress=False)
@@ -26,28 +29,31 @@ def akcje_tab():
 
     # Wymagane kolumny
     required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
-    existing_cols = [col for col in required_cols if col in df.columns]
+    existing_cols = []
+
+    for col in required_cols:
+        if col in df.columns:
+            # Jeśli kolumna jest DataFrame (multiindex), bierzemy pierwszą kolumnę
+            if isinstance(df[col], pd.DataFrame):
+                df[col] = df[col].iloc[:, 0]
+            # Spłaszczamy do 1-wymiarowej serii i konwertujemy do numeric
+            df[col] = pd.to_numeric(pd.Series(df[col].values.flatten()), errors='coerce')
+            existing_cols.append(col)
 
     if not existing_cols:
         st.error("❌ Brak wymaganych kolumn w danych. Spróbuj inny ticker.")
         return
 
-    # Absolutnie odporna konwersja kolumn
-    for col in existing_cols:
-        if isinstance(df[col], pd.DataFrame):
-            df[col] = df[col].iloc[:, 0]
-        arr = df[col].to_numpy().flatten()
-        df[col] = pd.to_numeric(arr, errors='coerce')
-
+    # Dropna po istniejących kolumnach
     df = df.dropna(subset=existing_cols)
     if df.empty:
         st.error("❌ Dane po konwersji są puste.")
         return
 
-    # Kolumny do wyświetlania
+    # Kolumna Close do wyświetlania
     close_col = 'Close' if 'Close' in df.columns else existing_cols[-1]
 
-    # Informacje w metrykach
+    # Metryki
     col1, col2, col3 = st.columns(3)
     col1.metric("Cena (USD)", f"${df[close_col].iloc[-1]:.2f}")
     col2.metric("Zmiana 24h", f"{(df[close_col].pct_change().iloc[-1]*100):.2f}%" if len(df) > 1 else "Brak danych")
@@ -77,7 +83,7 @@ def akcje_tab():
     fig.update_layout(xaxis_rangeslider_visible=False, template="plotly_dark", height=600)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Wykres wolumenu
+    # Wolumen
     if 'Volume' in df.columns:
         st.markdown("### Wolumen")
         fig_vol = go.Figure()
