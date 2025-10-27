@@ -15,89 +15,108 @@ def financial_analysis(df, ticker):
     if close_col not in df.columns or df[close_col].empty:
         return results, df
 
-    # SMA
+    # =========================
+    # Zaawansowane wskaźniki techniczne
+    # =========================
     df['SMA20'] = SMAIndicator(df[close_col], 20).sma_indicator()
     df['SMA50'] = SMAIndicator(df[close_col], 50).sma_indicator()
     df['SMA200'] = SMAIndicator(df[close_col], 200).sma_indicator()
 
-    # EMA
     df['EMA20'] = EMAIndicator(df[close_col], 20).ema_indicator()
     df['EMA50'] = EMAIndicator(df[close_col], 50).ema_indicator()
 
-    # Bollinger Bands
     bb = BollingerBands(df[close_col], window=20, window_dev=2)
     df['BB_upper'] = bb.bollinger_hband()
     df['BB_lower'] = bb.bollinger_lband()
     results['BB_upper'] = df['BB_upper'].iloc[-1]
     results['BB_lower'] = df['BB_lower'].iloc[-1]
 
-    # ATR
     atr = AverageTrueRange(df['High'], df['Low'], df[close_col], window=14)
     df['ATR'] = atr.average_true_range()
     results['ATR'] = df['ATR'].iloc[-1]
 
-    # RSI
     rsi = RSIIndicator(df[close_col], window=14)
     df['RSI'] = rsi.rsi()
     results['RSI'] = df['RSI'].iloc[-1]
 
-    # Stochastic Oscillator
     stoch = StochasticOscillator(df['High'], df['Low'], df[close_col], window=14, smooth_window=3)
     df['Stoch'] = stoch.stoch()
     results['Stochastic'] = df['Stoch'].iloc[-1]
 
-    # CCI
     cci = CCIIndicator(df['High'], df['Low'], df[close_col], window=20)
     df['CCI'] = cci.cci()
     results['CCI'] = df['CCI'].iloc[-1]
 
-    # MACD
     macd = MACD(df[close_col])
     df['MACD'] = macd.macd()
     df['MACD_signal'] = macd.macd_signal()
     results['MACD'] = df['MACD'].iloc[-1]
 
-    # Momentum
     df['Momentum'] = df[close_col].diff(5)
     results['Momentum'] = df['Momentum'].iloc[-1]
 
-    # OBV
     obv = OnBalanceVolumeIndicator(df[close_col], df['Volume'])
     df['OBV'] = obv.on_balance_volume()
     results['OBV'] = df['OBV'].iloc[-1]
 
-    # Volatility 30d
+    # =========================
+    # Analizy dodatkowe
+    # =========================
     df['returns'] = df[close_col].pct_change()
     results['Volatility_30d'] = df['returns'].rolling(window=30).std().iloc[-1] * np.sqrt(252)
 
-    # Fundamentalne
+    # =========================
+    # Analizy fundamentalne
+    # =========================
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        results['PE'] = info.get('trailingPE', None)
-        results['EPS'] = info.get('trailingEps', None)
-        results['MarketCap'] = info.get('marketCap', None)
-        results['DividendYield'] = info.get('dividendYield', None)
-        results['Beta'] = info.get('beta', None)
+        results['PE'] = info.get('trailingPE', '-')
+        results['EPS'] = info.get('trailingEps', '-')
+        results['MarketCap'] = info.get('marketCap', '-')
+        results['DividendYield'] = info.get('dividendYield', '-')
+        results['Beta'] = info.get('beta', '-')
     except:
-        pass
+        results['PE'] = results['EPS'] = results['MarketCap'] = results['DividendYield'] = results['Beta'] = '-'
 
-    # Signal
+    # =========================
+    # Sygnał trendu i ostrzeżenia
+    # =========================
     signal = "Neutral"
     strength = 0
+    warnings = []
+
+    # Trend na SMA
     if df['SMA20'].iloc[-1] > df['SMA50'].iloc[-1]:
-        signal = "Buy"
+        signal = "Kupno"
         strength += 3
-    if df['RSI'].iloc[-1] < 30:
-        signal = "Buy"
+    if df['SMA20'].iloc[-1] < df['SMA50'].iloc[-1]:
+        signal = "Sprzedaż"
+        strength += 3
+
+    # RSI
+    if results['RSI'] < 30:
+        signal = "Kupno"
         strength += 2
-    if df['RSI'].iloc[-1] > 70:
-        signal = "Sell"
+        warnings.append("RSI < 30 - możliwe wyprzedanie")
+    elif results['RSI'] > 70:
+        signal = "Sprzedaż"
         strength += 2
+        warnings.append("RSI > 70 - możliwe wykupienie")
+
+    # MACD
     if df['MACD'].iloc[-1] > df['MACD_signal'].iloc[-1]:
         strength += 1
+    elif df['MACD'].iloc[-1] < df['MACD_signal'].iloc[-1]:
+        strength += 1
+
+    # ATR - wysoka zmienność
+    if results['ATR'] > df[close_col].mean() * 0.02:
+        warnings.append("Wysoka zmienność – spodziewaj się większych ruchów cen ⚠️")
+
     results['Signal'] = signal
     results['Signal_Strength'] = strength
+    results['Warnings'] = warnings
 
     return results, df
 
@@ -125,37 +144,44 @@ def akcje_tab():
 
     fin_results, df = financial_analysis(df, ticker)
 
+    # =========================
     # Wyświetlanie metryk
-    st.subheader(f"Technical & Fundamental Analysis - {ticker}")
+    # =========================
+    st.subheader(f"Analiza techniczna i fundamentalna - {ticker}")
     col1, col2, col3 = st.columns(3)
     col1.metric("Cena (USD)", f"${df['Close'].iloc[-1]:.2f}" if not df['Close'].isna().all() else "Brak")
-    col1.metric("SMA20", f"{df['SMA20'].iloc[-1]:.2f}" if 'SMA20' in df else "Brak")
-    col1.metric("SMA50", f"{df['SMA50'].iloc[-1]:.2f}" if 'SMA50' in df else "Brak")
-
+    col1.metric("SMA20", f"{df['SMA20'].iloc[-1]:.2f}" if 'SMA20' in df else "-")
+    col1.metric("SMA50", f"{df['SMA50'].iloc[-1]:.2f}" if 'SMA50' in df else "-")
     col2.metric("RSI(14)", f"{fin_results.get('RSI',0):.2f}")
     col2.metric("MACD", f"{fin_results.get('MACD',0):.2f}")
     col2.metric("Momentum", f"{fin_results.get('Momentum',0):.2f}")
-
     col3.metric("ATR", f"{fin_results.get('ATR',0):.2f}")
     col3.metric("Volatility 30d", f"{fin_results.get('Volatility_30d',0)*100:.2f}%")
     col3.metric("OBV", f"{fin_results.get('OBV',0):.0f}")
 
-    st.subheader("📊 Fundamental Metrics")
+    st.subheader("📊 Analizy fundamentalne")
     colf1, colf2, colf3 = st.columns(3)
-    colf1.metric("P/E", f"{fin_results.get('PE','-')}")
-    colf1.metric("EPS", f"{fin_results.get('EPS','-')}")
-    colf2.metric("Market Cap", f"{fin_results.get('MarketCap','-')}")
-    colf2.metric("Dividend Yield", f"{fin_results.get('DividendYield','-')}")
-    colf3.metric("Beta", f"{fin_results.get('Beta','-')}")
-    colf3.metric("Signal", f"{fin_results.get('Signal','Neutral')} ({fin_results.get('Signal_Strength',0)}/10)")
+    colf1.metric("P/E", fin_results.get('PE','-'))
+    colf1.metric("EPS", fin_results.get('EPS','-'))
+    colf2.metric("Market Cap", fin_results.get('MarketCap','-'))
+    colf2.metric("Dividend Yield", fin_results.get('DividendYield','-'))
+    colf3.metric("Beta", fin_results.get('Beta','-'))
+    colf3.metric("Trend Signal", f"{fin_results.get('Signal','Neutral')} ({fin_results.get('Signal_Strength',0)}/10)")
 
+    if fin_results.get('Warnings'):
+        st.warning(" | ".join(fin_results['Warnings']))
+
+    # =========================
     # Wykres świecowy
-    fig = go.Figure(data=[go.Candlestick(x=df['Date'],
-                                         open=df['Open'],
-                                         high=df['High'],
-                                         low=df['Low'],
-                                         close=df['Close'],
-                                         name=ticker)])
+    # =========================
+    fig = go.Figure(data=[go.Candlestick(
+        x=df['Date'],
+        open=df['Open'],
+        high=df['High'],
+        low=df['Low'],
+        close=df['Close'],
+        name=ticker
+    )])
     fig.update_layout(title=f"Wykres świecowy - {ticker}",
                       xaxis_title="Data",
                       yaxis_title="Cena (USD)",
