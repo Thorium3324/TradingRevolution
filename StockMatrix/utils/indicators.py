@@ -3,7 +3,12 @@ from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
 
 def add_technical_indicators(df):
+    df = df.copy()
+    # upewniamy się, że Close jest 1D
     close = df['Close']
+    if isinstance(close, pd.DataFrame):
+        close = close.iloc[:,0]  # wybierz pierwszą kolumnę, jeśli 2D
+
     df['SMA20'] = SMAIndicator(close, 20).sma_indicator()
     df['EMA20'] = EMAIndicator(close, 20).ema_indicator()
     df['RSI'] = RSIIndicator(close, 14).rsi()
