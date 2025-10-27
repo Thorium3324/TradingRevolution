@@ -2,8 +2,8 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-from ta.trend import SMAIndicator, EMAIndicator, MACD, ADXIndicator
-from ta.momentum import RSIIndicator, StochasticOscillator, CCIIndicator
+from ta.trend import SMAIndicator, EMAIndicator, MACD, ADXIndicator, CCIIndicator
+from ta.momentum import RSIIndicator, StochasticOscillator
 from ta.volatility import BollingerBands, AverageTrueRange
 
 def akcje_tab():
@@ -115,39 +115,3 @@ def akcje_tab():
         ))
         fig_vol.update_layout(title="Wolumen", template="plotly_dark", height=200)
         st.plotly_chart(fig_vol, use_container_width=True)
-
-    # --- Technical Analysis Panel ---
-    st.subheader("Technical Analysis Panel")
-    def safe_float(x, default=0.0):
-        try:
-            if pd.isna(x):
-                return default
-            return float(x)
-        except:
-            return default
-
-    last_price = safe_float(close_data.iloc[-1])
-    last_rsi = safe_float(df['RSI14'].iloc[-1])
-    last_macd = safe_float(df['MACD'].iloc[-1])
-    last_cci = safe_float(df['CCI20'].iloc[-1])
-    last_adx = safe_float(df['ADX14'].iloc[-1])
-    vol30 = safe_float(close_data.pct_change().dropna()[-30:].std() * 100 if len(close_data) >= 30 else 0.0)
-
-    cols = st.columns(6)
-    cols[0].metric("Price (USD)", f"${last_price:.2f}", key=f"price_{ticker}")
-    cols[1].metric("RSI (14)", f"{last_rsi:.2f}", key=f"rsi_{ticker}")
-    cols[2].metric("MACD", f"{last_macd:.3f}", key=f"macd_{ticker}")
-    cols[3].metric("CCI (20)", f"{last_cci:.2f}", key=f"cci_{ticker}")
-    cols[4].metric("ADX (14)", f"{last_adx:.2f}", key=f"adx_{ticker}")
-    cols[5].metric("Volatility (30d)", f"{vol30:.2f}%", key=f"vol_{ticker}")
-
-    if vol30 > 10:
-        st.warning("High volatility detected – expect larger price swings ⚠️")
-
-    # --- Dodatkowe sygnały ---
-    df['Signal'] = ""
-    df.loc[(close_data > df['SMA20']) & (last_rsi < 70), 'Signal'] = "BUY"
-    df.loc[(close_data < df['SMA20']) & (last_rsi > 30), 'Signal'] = "SELL"
-
-    st.subheader("Ostatnie sygnały Buy/Sell")
-    st.dataframe(df[['SMA20','SMA50','EMA20','EMA50','RSI14','MACD','Signal']].tail(20))
