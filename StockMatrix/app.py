@@ -29,9 +29,12 @@ if tabs == "Akcje":
             
             for col in ['Open','High','Low','Close','Adj Close','Volume']:
                 if col in df.columns:
-                    # jeśli kolumna jest DataFrame, wybieramy pierwszą kolumnę
+                    # jeśli kolumna jest DataFrame lub MultiIndex, bierzemy pierwszą kolumnę
                     if isinstance(df[col], pd.DataFrame):
                         df[col] = df[col].iloc[:,0]
+                    # jeśli typ nie jest Series, wymuszamy Series
+                    if not isinstance(df[col], pd.Series):
+                        df[col] = pd.Series(df[col])
                     df[col] = pd.to_numeric(df[col], errors='coerce')
             
             df = df.dropna(subset=['Open','High','Low','Close'])
