@@ -1,17 +1,17 @@
-# app.py – poprawiona wersja, wczytująca zakładki bez błędów
+# app.py - pełny działający plik Streamlit z zakładkami Akcje i Krypto
+
 import streamlit as st
 from tabs.akcje_tab import akcje_tab
 from tabs.krypto_tab import krypto_tab
 
 st.set_page_config(page_title="TradingRevolution Ultimate", layout="wide")
 
-st.title("TradingRevolution Ultimate Dashboard")
+st.title("TradingRevolution Ultimate")
 
-# --- Panel zakładek ---
-tab = st.tabs(["Akcje", "Kryptowaluty"])
+tabs = st.tabs(["Akcje", "Krypto"])
 
-with tab[0]:
+with tabs[0]:
     akcje_tab()
 
-with tab[1]:
+with tabs[1]:
     krypto_tab()
