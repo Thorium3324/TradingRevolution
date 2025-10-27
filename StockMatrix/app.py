@@ -22,8 +22,8 @@ st.set_page_config(
 
 st.title("TradingRevolution Ultimate")
 
-# --- Zakładki ---
-tab_options = ["AI", "Alerty", "Analityka", "Strategie"]
+# --- Zakładki główne ---
+tab_options = ["AI", "Alerty", "Analityka", "Strategie", "Akcje", "Krypto"]
 tabs = st.tabs(tab_options)
 
 # --- AI ---
@@ -46,8 +46,7 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("Zakładka Analityka")
     try:
-        # Wywołanie zakładki Akcje
-        akcje_tab()
+        st.info("Tutaj będzie ogólna analityka (podsumowania, wykresy).")
     except Exception as e:
         st.error(f"Błąd w zakładce Analityka: {e}")
 
@@ -55,7 +54,22 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("Zakładka Strategie")
     try:
-        # Tutaj możesz załadować np. strategię inwestycyjną
         st.info("Tutaj będzie logika strategii.")
     except Exception as e:
         st.error(f"Błąd w zakładce Strategie: {e}")
+
+# --- Akcje ---
+with tabs[4]:
+    st.subheader("Zakładka Akcje")
+    try:
+        akcje_tab()
+    except Exception as e:
+        st.error(f"Błąd w zakładce Akcje: {e}")
+
+# --- Krypto ---
+with tabs[5]:
+    st.subheader("Zakładka Krypto")
+    try:
+        krypto_tab()
+    except Exception as e:
+        st.error(f"Błąd w zakładce Krypto: {e}")
