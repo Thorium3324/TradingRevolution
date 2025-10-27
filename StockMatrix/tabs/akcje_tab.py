@@ -81,7 +81,7 @@ def financial_analysis(df, ticker):
 
 def akcje_tab():
     st.header("📈 Akcje")
-    
+
     ticker = st.text_input("Wpisz ticker akcji (np. AAPL, TSLA)", value="AAPL").upper()
     if not ticker:
         st.warning("Wpisz ticker akcji aby rozpocząć")
@@ -98,17 +98,23 @@ def akcje_tab():
         return
 
     df.reset_index(inplace=True)
-    
+
+    # Upewnij się, że kolumny istnieją
+    required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+    for col in required_cols:
+        if col not in df.columns:
+            df[col] = np.nan
+
     # Techniczne i finansowe analizy
     fin_results, df = financial_analysis(df, ticker)
 
     # Wyświetlanie metryk
     st.subheader(f"Technical Analysis - {ticker}")
     col1, col2, col3 = st.columns(3)
-    
-    col1.metric("Cena (USD)", f"${df['Close'].iloc[-1]:.2f}")
-    col1.metric("SMA20", f"{df['SMA20'].iloc[-1]:.2f}")
-    col1.metric("SMA50", f"{df['SMA50'].iloc[-1]:.2f}")
+
+    col1.metric("Cena (USD)", f"${df['Close'].iloc[-1]:.2f}" if not df['Close'].isna().all() else "Brak")
+    col1.metric("SMA20", f"{df['SMA20'].iloc[-1]:.2f}" if 'SMA20' in df else "Brak")
+    col1.metric("SMA50", f"{df['SMA50'].iloc[-1]:.2f}" if 'SMA50' in df else "Brak")
 
     col2.metric("RSI(14)", f"{fin_results.get('RSI',0):.2f}")
     col2.metric("MACD", f"{fin_results.get('MACD',0):.2f}")
